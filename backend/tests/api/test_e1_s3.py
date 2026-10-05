@@ -92,3 +92,30 @@ def test_unexpected_error_envelope(tmp_path: Path) -> None:
         r = c.get("/boom")
     assert r.status_code == 500
     assert r.json()["error"]["code"] == "INTERNAL_ERROR"
+
+
+def _boom_client(tmp_path: Path) -> TestClient:
+    app = create_app(Settings(db_path=tmp_path / "t.db"), FakeClock())
+
+    @app.post("/boom")
+    def boom() -> None:
+        raise RuntimeError("x")
+
+    return TestClient(app, raise_server_exceptions=False)
+
+
+def test_unexpected_error_carries_cors_headers_for_allowed_origin(tmp_path: Path) -> None:
+    """Without them the browser hides the 500 and the UI only shows 'Failed to fetch'."""
+    with _boom_client(tmp_path) as c:
+        r = c.post("/boom", headers={"Origin": "http://localhost:3000"})
+    assert r.status_code == 500
+    assert r.headers["access-control-allow-origin"] == "http://localhost:3000"
+    assert "origin" in r.headers["vary"].lower()
+
+
+def test_unexpected_error_has_no_cors_headers_for_other_origin(tmp_path: Path) -> None:
+    with _boom_client(tmp_path) as c:
+        r = c.post("/boom", headers={"Origin": "http://evil.example"})
+        no_origin = c.post("/boom")
+    assert r.status_code == 500 and "access-control-allow-origin" not in r.headers
+    assert "access-control-allow-origin" not in no_origin.headers

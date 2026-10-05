@@ -54,9 +54,16 @@ async def _request_invalid(_: Request, exc: Exception) -> JSONResponse:
     return _envelope(422, "VALIDATION_ERROR", str(first["msg"]), field)
 
 
-async def _unexpected(_: Request, exc: Exception) -> JSONResponse:
+async def _unexpected(request: Request, exc: Exception) -> JSONResponse:
     log.exception("unhandled error", exc_info=exc)
-    return _envelope(500, "INTERNAL_ERROR", "Unexpected error")
+    response = _envelope(500, "INTERNAL_ERROR", "Unexpected error")
+    # This handler runs outside CORSMiddleware, so add the allowed origin here; otherwise the
+    # browser hides the response and the UI only shows "Failed to fetch".
+    allowed = request.app.state.container.settings.cors_origin
+    if request.headers.get("origin") == allowed:
+        response.headers["access-control-allow-origin"] = allowed
+        response.headers["vary"] = "Origin"
+    return response
 
 
 def install_error_handlers(app: FastAPI) -> None:

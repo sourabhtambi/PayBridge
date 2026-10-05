@@ -17,17 +17,29 @@ fi
 
 # Local dev servers (verification mode: local)
 mkdir -p .run
-(cd backend && exec uv run uvicorn src.main:app --port 8000 > ../.run/backend.log 2>&1) &
-echo $! > .run/backend.pid
-(cd frontend && exec npm run dev -- --port 3000 > ../.run/frontend.log 2>&1) &
-echo $! > .run/frontend.pid
-
 stop_servers() {
   for f in .run/backend.pid .run/frontend.pid; do
     [ -f "$f" ] && pkill -P "$(cat "$f")" 2>/dev/null || true
     [ -f "$f" ] && kill "$(cat "$f")" 2>/dev/null || true
   done
 }
+
+# Stop servers from a previous run, then make sure nothing else holds the ports
+stop_servers
+sleep 1
+rm -f .run/backend.pid .run/frontend.pid
+for port in 8000 3000; do
+  holder=$(lsof -tiTCP:"$port" -sTCP:LISTEN 2>/dev/null | head -1 || true)
+  if [ -n "$holder" ]; then
+    echo "Port $port is still in use by PID $holder (not started by init.sh). Stop it and re-run."
+    exit 1
+  fi
+done
+
+(cd backend && exec uv run uvicorn src.main:app --port 8000 > ../.run/backend.log 2>&1) &
+echo $! > .run/backend.pid
+(cd frontend && exec npm run dev -- --port 3000 > ../.run/frontend.log 2>&1) &
+echo $! > .run/frontend.pid
 
 # Health checks
 echo "Waiting for services..."
