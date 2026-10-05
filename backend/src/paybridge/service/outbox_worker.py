@@ -2,6 +2,7 @@
 
 import asyncio
 import json
+import logging
 from datetime import timedelta
 
 from paybridge.config.constants import RETRY_BASE_DELAY_SECONDS, RETRY_MAX_ATTEMPTS
@@ -16,6 +17,8 @@ from paybridge.types.enums import AttemptOutcome, EventType, PaymentState, Rail,
 from paybridge.types.errors import PermanentRailError, TransientRailError
 from paybridge.types.models import OutboxMessage, PaymentEvent
 from paybridge.types.ports import Clock, RailAdapter
+
+log = logging.getLogger(__name__)
 
 POLL_INTERVAL_SECONDS = 0.2
 BATCH_SIZE = 20
@@ -44,7 +47,11 @@ class OutboxWorker:
         with self._db.read() as conn:
             due = OutboxRepo(conn).list_due(now, BATCH_SIZE)
         for msg in due:
-            await self._process(msg)
+            try:
+                await self._process(msg)
+            except Exception:
+                # One bad message must not block the rest of the batch or kill the loop.
+                log.exception("outbox message %s failed unexpectedly", msg.id)
         return len(due)
 
     async def _process(self, msg: OutboxMessage) -> None:
@@ -123,5 +130,8 @@ class OutboxWorker:
 
     async def run(self) -> None:
         while True:
-            await self.process_once()
+            try:
+                await self.process_once()
+            except Exception:
+                log.exception("outbox worker iteration failed")
             await asyncio.sleep(self._poll_interval)

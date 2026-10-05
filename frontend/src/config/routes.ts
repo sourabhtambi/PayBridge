@@ -11,3 +11,9 @@ export const NAV_BY_ROLE: Record<Role, NavItem[]> = {
     { label: "Simulation", route: "/simulation" },
   ],
 };
+
+export const DEFAULT_ROUTE_BY_ROLE: Record<Role, string> = {
+  customer: "/payments",
+  ops: "/reconciliation",
+  admin: "/dashboard",
+};

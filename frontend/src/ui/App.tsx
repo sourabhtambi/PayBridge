@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { SessionProvider } from "./state/SessionContext";
+import { SessionProvider, useSession } from "./state/SessionContext";
 import { AppShell } from "./components/AppShell";
 import { NewPaymentPage } from "./pages/NewPaymentPage";
 import { PaymentDetailPage } from "./pages/PaymentDetailPage";
@@ -12,6 +12,8 @@ import { DashboardPage } from "./pages/DashboardPage";
 import { SettlementPage } from "./pages/SettlementPage";
 import { takeFlash } from "../service/flash";
 import { usePathname } from "./hooks/usePathname";
+import { navigate } from "./hooks/navigate";
+import { DEFAULT_ROUTE_BY_ROLE } from "../config/routes";
 
 function FlashBanner() {
   const [flash, setFlash] = useState<string | null>(null);
@@ -26,9 +28,22 @@ function FlashBanner() {
 
 function Routes() {
   const path = usePathname();
+  const { session } = useSession();
+  const previousRole = useRef(session.role);
+  useEffect(() => {
+    if (previousRole.current === session.role) return;
+    previousRole.current = session.role;
+    navigate(DEFAULT_ROUTE_BY_ROLE[session.role]);
+  }, [session.role]);
+  const previousCustomer = useRef(session.customerId);
+  useEffect(() => {
+    if (previousCustomer.current === session.customerId) return;
+    previousCustomer.current = session.customerId;
+    if (path.startsWith("/payments/") && path !== "/payments/new") navigate("/payments");
+  }, [session.customerId, path]);
   return (
     <AppShell>
-      {path === "/payments" ? <PaymentsListPage /> : null}
+      {path === "/payments" ? <PaymentsListPage key={session.customerId ?? ""} /> : null}
       {path === "/simulation" ? <SimulationPage /> : null}
       {path === "/dashboard" ? <DashboardPage /> : null}
       {path === "/refunds" ? <RefundQueue /> : null}

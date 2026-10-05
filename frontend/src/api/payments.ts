@@ -1,5 +1,5 @@
 import { API_BASE_URL } from "../config/env";
-import { apiRequest, authHeaders } from "./client";
+import { apiRequest, authHeaders, loadSession } from "./client";
 import type { PaymentList } from "../types/api";
 import type { PaymentDetail } from "../types/domain";
 
@@ -23,7 +23,9 @@ export async function createPayment(
 }
 
 export function listPayments(): Promise<PaymentList> {
-  return apiRequest<PaymentList>("/payments");
+  const { role, customerId } = loadSession();
+  const query = role === "customer" && customerId ? `?customer_id=${encodeURIComponent(customerId)}` : "";
+  return apiRequest<PaymentList>(`/payments${query}`);
 }
 
 export function getPayment(id: string): Promise<PaymentDetail> {

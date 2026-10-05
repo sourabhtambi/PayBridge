@@ -215,3 +215,40 @@ def test_worker_skips_rows_before_next_attempt_at(
     assert asyncio.run(worker.process_once()) == 0
     clock.advance(61)
     assert asyncio.run(worker.process_once()) == 1
+
+
+class _FlakyAdapter:
+    """Raises an unexpected (non-rail) error on the first submit, then succeeds."""
+
+    def __init__(self, inner: object) -> None:
+        self._inner = inner
+        self.calls = 0
+
+    async def submit(self, payment_id: str, amount_paise: int) -> RailLedgerEntry:
+        self.calls += 1
+        if self.calls == 1:
+            raise RuntimeError("unexpected adapter bug")
+        return await self._inner.submit(payment_id, amount_paise)  # type: ignore[attr-defined,no-any-return]
+
+
+def test_run_survives_unexpected_errors_and_keeps_processing(
+    database: Database, conn: sqlite3.Connection, clock: FakeClock
+) -> None:
+    """A single unexpected exception must not kill the worker loop (stuck CREATED payments)."""
+    p = PaymentService(database, clock).create_payment("cus_001", "k", 15_000_000, "Ravi").payment
+    adapters = build_adapters(clock)
+    flaky = _FlakyAdapter(adapters[Rail.IMPS])
+    adapters[Rail.IMPS] = flaky  # type: ignore[assignment]
+    worker = OutboxWorker(database, clock, adapters, poll_interval=0.01)
+
+    async def run_briefly() -> None:
+        task = asyncio.create_task(worker.run())
+        await asyncio.sleep(0.3)
+        assert not task.done(), "worker loop died"
+        task.cancel()
+        await asyncio.gather(task, return_exceptions=True)
+
+    asyncio.run(run_briefly())
+    stored = PaymentsRepo(conn).get(p.id)
+    assert stored is not None and stored.state is PaymentState.COMPLETED
+    assert flaky.calls == 2
