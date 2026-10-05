@@ -6,7 +6,7 @@ const fs = require('fs');
 const path = require('path');
 
 // Layer order from lowest to highest
-const LAYERS = ['types', 'config', 'repository', 'service', 'api'];
+const LAYERS = ['types', 'domain', 'config', 'repository', 'service', 'api'];
 
 // Determine layer from file path
 function getLayer(filePath) {
