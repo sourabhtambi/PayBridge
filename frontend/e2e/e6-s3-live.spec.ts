@@ -3,7 +3,7 @@ import { execSync } from "node:child_process";
 
 const API = "http://localhost:8000";
 const SS = "../specs/reviews/screenshots/e6-s3/";
-const DB = "../backend/data/paybridge.db";
+const DB = process.env.PAYBRIDGE_DB_PATH ?? "../backend/data/paybridge.db"; // must be the DB the server uses
 const cust = { "X-Role": "customer", "X-Customer-Id": "cus_001" };
 const today = new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Kolkata" });
 
@@ -15,16 +15,17 @@ test("E6-S3 live run and resolve", async ({ page, request }) => {
   expect(res.status()).toBeLessThan(300);
   const id = (await res.json()).id as string;
   let ref = "";
+  let rail = "";
+  let createdAt = "";
   for (let i = 0; i < 40; i++) {
     const p = await (await request.get(`${API}/payments/${id}`, { headers: cust })).json();
-    if (p.state === "COMPLETED") { ref = p.rail_reference ?? ""; break; }
+    if (p.state === "COMPLETED") { ref = p.rail_reference ?? ""; rail = p.rail; createdAt = p.created_at; break; }
     await new Promise((s) => setTimeout(s, 500));
   }
   expect(ref).not.toBe("");
-  const rail = execSync(`sqlite3 ${DB} "select rail from payments where id='${id}'"`).toString().trim();
-  const completed = execSync(`sqlite3 ${DB} "select completed_at from payments where id='${id}'"`).toString().trim();
+  expect(["UPI", "IMPS", "NEFT", "RTGS"]).toContain(rail);
   // seed one orphan external entry for today
-  execSync(`sqlite3 ${DB} "insert into rail_statement_entries(id,rail,payment_ref,payment_id,amount_paise,statement_date,created_at) values ('rse_e6s3orphan${Date.now()}','${rail}','ORPHAN-${Date.now()}',NULL,4242,'${today}','${completed}')"`);
+  execSync(`sqlite3 ${DB} "insert into rail_statement_entries(id,rail,payment_ref,payment_id,amount_paise,statement_date,created_at) values ('rse_e6s3orphan${Date.now()}','${rail}','ORPHAN-${Date.now()}',NULL,4242,'${today}','${createdAt}')"`);
 
   await page.addInitScript(() => window.localStorage.setItem("paybridge.session", JSON.stringify({ role: "ops", customerId: null })));
   await page.goto("/reconciliation");

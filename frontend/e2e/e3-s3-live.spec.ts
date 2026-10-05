@@ -1,7 +1,13 @@
 import { test, expect } from "@playwright/test";
+import { resetDb, seedCompletedPayment } from "./helpers";
 const SS = "../specs/reviews/screenshots/e3-s3/";
+let paymentId = "";
+test.beforeAll(async ({ request }) => {
+  await resetDb(request);
+  paymentId = await seedCompletedPayment(request, 250000);
+});
 test("E3-S3 live detail", async ({ page }) => {
-  await page.goto("/payments/pay_8e8903fc2944");
+  await page.goto(`/payments/${paymentId}`);
   await expect(page.locator('[data-state="COMPLETED"]')).toBeVisible();
   await expect(page.getByText("Rs 2,500.00").first()).toBeVisible();
   await expect(page.getByRole("table", { name: "Attempts" })).toBeVisible();

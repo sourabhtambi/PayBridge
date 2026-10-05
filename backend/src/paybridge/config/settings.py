@@ -52,6 +52,7 @@ class Settings:
     cors_origin: str = "http://localhost:3000"
     busy_timeout_ms: int = 10000
     poll_interval_seconds: float = 0.5
+    env: str = "dev"
 
     @classmethod
     def from_env(cls) -> "Settings":
@@ -71,4 +72,5 @@ class Settings:
             poll_interval_seconds=_poll_interval(
                 env.get("PAYBRIDGE_WORKER_POLL_INTERVAL", str(d.poll_interval_seconds))
             ),
+            env=env.get("PAYBRIDGE_ENV", d.env),
         )

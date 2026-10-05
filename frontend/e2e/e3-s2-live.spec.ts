@@ -1,5 +1,12 @@
 import { test, expect } from "@playwright/test";
+import { resetDb, seedCompletedPayment } from "./helpers";
 const SS = "../specs/reviews/screenshots/e3-s2/";
+let ids: string[] = [];
+test.beforeAll(async ({ request }) => {
+  await resetDb(request);
+  ids = [];
+  for (const paise of [10000050, 10000050, 50000000, 250000, 150000]) ids.push(await seedCompletedPayment(request, paise));
+});
 test("E3-S2 live list", async ({ page }) => {
   await page.goto("/payments");
   await expect(page.getByRole("table", { name: "My payments" })).toBeVisible();
@@ -12,13 +19,13 @@ test("E3-S2 live list", async ({ page }) => {
   await expect(page.locator('[data-state="COMPLETED"]')).toHaveCount(5);
   await page.screenshot({ path: SS + "04-live.png" });
   await page.keyboard.press("Tab"); 
-  const link = page.getByRole("link", { name: "pay_c8a8e42e8be3" });
+  const link = page.getByRole("link", { name: ids[0] });
   await link.focus();
   await page.keyboard.press("Enter");
-  await expect(page).toHaveURL(/\/payments\/pay_c8a8e42e8be3$/);
+  await expect(page).toHaveURL(new RegExp(`/payments/${ids[0]}$`));
 });
 
-const API = "http://localhost:8000/payments";
+const API = "http://localhost:8000/payments**";
 const item = (id: string, state: string, reason: string | null) => ({
   id, customer_id: "cus_001", amount_paise: 10000050, rail: "IMPS", beneficiary: "A",
   state, reason_code: reason, created_at: "2026-10-04T09:30:00Z",

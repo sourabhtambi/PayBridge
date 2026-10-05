@@ -1,6 +1,6 @@
 import { test, expect } from "@playwright/test";
 
-const API = "http://localhost:8000/payments";
+const API = "http://localhost:8000/payments**";
 const SS = "../specs/reviews/screenshots/e3-s2/";
 const item = (id: string, state: string, reason: string | null) => ({
   id, customer_id: "cus_001", amount_paise: 10000050, rail: "IMPS", beneficiary: "A",

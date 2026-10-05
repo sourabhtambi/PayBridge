@@ -20,6 +20,9 @@ class SimulationStore:
         self._rng = random.Random(seed)
         self._configs = {rail: SimulationConfig(rail) for rail in Rail}
 
+    def reset(self) -> None:
+        self._configs = {rail: SimulationConfig(rail) for rail in Rail}
+
     def all(self) -> list[SimulationConfig]:
         return [self._configs[rail] for rail in Rail]
 

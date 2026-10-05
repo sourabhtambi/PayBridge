@@ -1,12 +1,18 @@
 import { test, expect } from "@playwright/test";
+import { resetDb, seedCompletedPayment } from "./helpers";
 const SS = "../specs/reviews/screenshots/e5-s3/";
 const at = "2026-10-04T09:30:00Z";
 const pay = (state: string, refund: unknown) => ({
   id: "pay_m", customer_id: "cus_001", amount_paise: 250000, rail: "UPI", beneficiary: "A", state,
   reason_code: null, refund, created_at: at, events: [], attempts: [],
 });
+let paymentId = "";
+test.beforeAll(async ({ request }) => {
+  await resetDb(request);
+  paymentId = await seedCompletedPayment(request, 250000);
+});
 test("E5-S3 live COMPLETED no refund shows button", async ({ page }) => {
-  await page.goto("/payments/pay_f0dd627a03e7");
+  await page.goto(`/payments/${paymentId}`);
   await expect(page.getByRole("button", { name: "Request refund" })).toBeVisible();
   await page.screenshot({ path: SS + "01-live-button.png", fullPage: true });
 });

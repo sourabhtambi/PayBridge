@@ -1,5 +1,6 @@
 import { test, expect } from "@playwright/test";
 import { readFileSync } from "node:fs";
+import { resetDb } from "./helpers";
 
 const API = "http://localhost:8000";
 const SS = "../specs/reviews/screenshots/e7-s3/";
@@ -7,6 +8,10 @@ const adminH = { "X-Role": "admin" };
 const cust = { "X-Role": "customer", "X-Customer-Id": "cus_001" };
 const session = (role: string, customerId: string | null) => ({ role, customerId });
 const REPEAT = "Primary file for this date already exists. Late entries were written to a follow-up file.";
+
+test.beforeAll(async ({ request }) => {
+  await resetDb(request);
+});
 
 test("E7-S3 live run, list, download", async ({ page, request }) => {
   const res = await request.post(`${API}/payments`, {
@@ -26,7 +31,7 @@ test("E7-S3 live run, list, download", async ({ page, request }) => {
   await page.addInitScript((s) => window.localStorage.setItem("paybridge.session", JSON.stringify(s)), session("admin", null));
   await page.goto("/settlement");
   await expect(page.getByRole("navigation").getByRole("link")).toHaveText(["Dashboard", "Settlement", "Simulation"]);
-  await expect(page.getByRole("heading", { name: "Settlement" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Settlement", exact: true })).toBeVisible();
   await page.screenshot({ path: SS + "10-live-before.png", fullPage: true });
 
   const postP = page.waitForRequest((r) => r.url() === `${API}/settlement/run` && r.method() === "POST");

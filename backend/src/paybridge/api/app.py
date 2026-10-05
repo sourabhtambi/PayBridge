@@ -20,6 +20,7 @@ from paybridge.api.routes import (
     refunds,
     settlement,
     simulation,
+    test_support,
 )
 from paybridge.config.logging_setup import install_masking
 from paybridge.config.settings import Settings
@@ -98,4 +99,6 @@ def create_app(settings: Settings | None = None, clock: Clock | None = None) -> 
         dashboard,
     ):
         app.include_router(module.router)
+    if settings.env == "test":
+        app.include_router(test_support.router)
     return app
