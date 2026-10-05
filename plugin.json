@@ -1,0 +1,24 @@
+{
+  "name": "paybridge-payments-ops",
+  "version": "1.0.0",
+  "description": "PayBridge payments operations substrate — routing, idempotency, reconciliation, settlement and refund agents, skills, hooks and commands",
+  "author": "Sourabh",
+  "skills": [
+    ".claude/skills/routing-rule-evaluator.md",
+    ".claude/skills/idempotency-key-generator.md",
+    ".claude/skills/reconciliation-matcher.md"
+  ],
+  "agents": [
+    ".claude/agents/routing-agent.md",
+    ".claude/agents/reconciliation-agent.md",
+    ".claude/agents/refund-agent.md"
+  ],
+  "hooks": [
+    ".claude/hooks/idempotency-uniqueness-check.sh",
+    ".claude/hooks/amount-precision-check.sh"
+  ],
+  "commands": [
+    ".claude/commands/run-settlement.md",
+    ".claude/commands/reconcile-day.md"
+  ]
+}

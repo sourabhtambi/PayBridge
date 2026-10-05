@@ -1,0 +1,2959 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "PayBridge API",
+    "version": "1.0.0",
+    "description": "Local-only demo API. Header role switch (not security). Base URL http://localhost:8000. Rate limit: none."
+  },
+  "servers": [
+    {
+      "url": "http://localhost:8000"
+    }
+  ],
+  "paths": {
+    "/health": {
+      "get": {
+        "tags": [
+          "Health"
+        ],
+        "summary": "Liveness and database check",
+        "description": "No headers required. Roles: none (public). Rate limit: none.",
+        "operationId": "get_health",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Health"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Database check failed (not the error envelope): {\"status\":\"error\",\"database\":\"error\"}",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Health"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "INTERNAL_ERROR",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/customers": {
+      "get": {
+        "tags": [
+          "Customers"
+        ],
+        "summary": "List demo users for the picker",
+        "description": "No headers required. Roles: none (public). Rate limit: none.",
+        "operationId": "get_customers",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "All seeded users (cus_001..003, ops_001, adm_001) with id, name, role",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CustomerList"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "INTERNAL_ERROR",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/payments": {
+      "post": {
+        "tags": [
+          "Payments"
+        ],
+        "summary": "Create a payment (idempotent)",
+        "description": "Idempotency expiry: once 24 h (IDEMPOTENCY_TTL_SECONDS = 86400) have elapsed since the original payment's created_at, the (customer_id, key) slot is lazily released inside the create transaction and the same key creates a NEW payment (202) regardless of payload (hash not compared); the original payment is unchanged except idempotency_released_at. A replay never extends the window. Routing: 100..10,000,000 UPI; ..20,000,000 IMPS; ..50,000,000 NEFT; above RTGS. Roles: customer. Rate limit: none.",
+        "operationId": "post_payments",
+        "parameters": [
+          {
+            "name": "X-Role",
+            "in": "header",
+            "required": true,
+            "description": "customer|ops|admin",
+            "schema": {
+              "$ref": "#/components/schemas/Role"
+            }
+          },
+          {
+            "name": "X-Customer-Id",
+            "in": "header",
+            "required": false,
+            "description": "Required when X-Role=customer; ops/admin may omit",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "description": "1-128 chars, UUID in the UI. Scoped per customer",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "202": {
+            "description": "New payment created in state CREATED; rail chosen by amount",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Payment"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "Replay: same (customer_id, key) and same payload within 24 h of the ORIGINAL payment's created_at (fixed window, not sliding). Returns the original payment. Header Idempotent-Replay: true",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Payment"
+                }
+              }
+            },
+            "headers": {
+              "Idempotent-Replay": {
+                "description": "true on replay",
+                "schema": {
+                  "type": "string",
+                  "enum": [
+                    "true"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHENTICATED: Missing or unknown X-Role, or invalid X-Customer-Id",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "error": {
+                    "code": "UNAUTHENTICATED",
+                    "message": "..."
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "FORBIDDEN: Role not permitted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "error": {
+                    "code": "FORBIDDEN",
+                    "message": "..."
+                  }
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "IDEMPOTENCY_KEY_CONFLICT: Same key, different payload, within the 24 h window",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "error": {
+                    "code": "IDEMPOTENCY_KEY_CONFLICT",
+                    "message": "..."
+                  }
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "AMOUNT_BELOW_MINIMUM: amount_paise < 100 (fields[0].field = amount_paise); VALIDATION_ERROR: Missing/invalid Idempotency-Key (field Idempotency-Key), empty or >140 char beneficiary, non-integer amount_paise",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "error": {
+                    "code": "AMOUNT_BELOW_MINIMUM",
+                    "message": "..."
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "INTERNAL_ERROR",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreatePaymentRequest"
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "Payments"
+        ],
+        "summary": "List payments, newest first",
+        "description": "Roles: customer, ops, admin. Rate limit: none.",
+        "operationId": "get_payments",
+        "parameters": [
+          {
+            "name": "X-Role",
+            "in": "header",
+            "required": true,
+            "description": "customer|ops|admin",
+            "schema": {
+              "$ref": "#/components/schemas/Role"
+            }
+          },
+          {
+            "name": "X-Customer-Id",
+            "in": "header",
+            "required": false,
+            "description": "Required when X-Role=customer; ops/admin may omit",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "state",
+            "in": "query",
+            "required": false,
+            "description": "",
+            "schema": {
+              "$ref": "#/components/schemas/PaymentState"
+            }
+          },
+          {
+            "name": "customer_id",
+            "in": "query",
+            "required": false,
+            "description": "Ops/admin only; ignored for customers (they always get their own)",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Customer: own payments. Ops/admin: all (optional customer_id filter). Cap 500.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaymentList"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHENTICATED: Missing or unknown X-Role, or invalid X-Customer-Id",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "error": {
+                    "code": "UNAUTHENTICATED",
+                    "message": "..."
+                  }
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "VALIDATION_ERROR: Invalid state",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "error": {
+                    "code": "VALIDATION_ERROR",
+                    "message": "..."
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "INTERNAL_ERROR",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/payments/{id}": {
+      "get": {
+        "tags": [
+          "Payments"
+        ],
+        "summary": "Payment detail with events and attempts",
+        "description": "Roles: customer, ops, admin. Rate limit: none.",
+        "operationId": "get_payments_id",
+        "parameters": [
+          {
+            "name": "X-Role",
+            "in": "header",
+            "required": true,
+            "description": "customer|ops|admin",
+            "schema": {
+              "$ref": "#/components/schemas/Role"
+            }
+          },
+          {
+            "name": "X-Customer-Id",
+            "in": "header",
+            "required": false,
+            "description": "Required when X-Role=customer; ops/admin may omit",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Payment + events (chronological) + attempts",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaymentDetail"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHENTICATED: Missing or unknown X-Role, or invalid X-Customer-Id",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "error": {
+                    "code": "UNAUTHENTICATED",
+                    "message": "..."
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NOT_FOUND: Unknown id, or another customer's payment when role=customer",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "error": {
+                    "code": "NOT_FOUND",
+                    "message": "..."
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "INTERNAL_ERROR",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/refunds": {
+      "post": {
+        "tags": [
+          "Refunds"
+        ],
+        "summary": "Request a full refund",
+        "description": "Roles: customer. Rate limit: none.",
+        "operationId": "post_refunds",
+        "parameters": [
+          {
+            "name": "X-Role",
+            "in": "header",
+            "required": true,
+            "description": "customer|ops|admin",
+            "schema": {
+              "$ref": "#/components/schemas/Role"
+            }
+          },
+          {
+            "name": "X-Customer-Id",
+            "in": "header",
+            "required": false,
+            "description": "Required when X-Role=customer; ops/admin may omit",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "state REQUESTED, amount_paise = payment amount, requested_by = customer id",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Refund"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHENTICATED: Missing or unknown X-Role, or invalid X-Customer-Id",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "error": {
+                    "code": "UNAUTHENTICATED",
+                    "message": "..."
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "FORBIDDEN: Role not permitted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "error": {
+                    "code": "FORBIDDEN",
+                    "message": "..."
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NOT_FOUND: Unknown payment or not the caller's",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "error": {
+                    "code": "NOT_FOUND",
+                    "message": "..."
+                  }
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "PAYMENT_NOT_REFUNDABLE: Payment is CREATED, SUBMITTED or FAILED; VALIDATION_ERROR: payment_id missing",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "error": {
+                    "code": "PAYMENT_NOT_REFUNDABLE",
+                    "message": "..."
+                  }
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "REFUND_ALREADY_EXISTS: A refund exists for the payment in any state",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "error": {
+                    "code": "REFUND_ALREADY_EXISTS",
+                    "message": "..."
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "INTERNAL_ERROR",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateRefundRequest"
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "Refunds"
+        ],
+        "summary": "List refunds",
+        "description": "Roles: customer, ops, admin. Rate limit: none.",
+        "operationId": "get_refunds",
+        "parameters": [
+          {
+            "name": "X-Role",
+            "in": "header",
+            "required": true,
+            "description": "customer|ops|admin",
+            "schema": {
+              "$ref": "#/components/schemas/Role"
+            }
+          },
+          {
+            "name": "X-Customer-Id",
+            "in": "header",
+            "required": false,
+            "description": "Required when X-Role=customer; ops/admin may omit",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "state",
+            "in": "query",
+            "required": false,
+            "description": "",
+            "schema": {
+              "$ref": "#/components/schemas/RefundState"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Customer: own (requested_by). Ops/admin: all. Cap 500.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RefundList"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHENTICATED: Missing or unknown X-Role, or invalid X-Customer-Id",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "error": {
+                    "code": "UNAUTHENTICATED",
+                    "message": "..."
+                  }
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "VALIDATION_ERROR: Invalid state",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "error": {
+                    "code": "VALIDATION_ERROR",
+                    "message": "..."
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "INTERNAL_ERROR",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/refunds/{id}/approve": {
+      "post": {
+        "tags": [
+          "Refunds"
+        ],
+        "summary": "Approve and execute a refund",
+        "description": "Roles: admin. Rate limit: none.",
+        "operationId": "post_refunds_id_approve",
+        "parameters": [
+          {
+            "name": "X-Role",
+            "in": "header",
+            "required": true,
+            "description": "customer|ops|admin",
+            "schema": {
+              "$ref": "#/components/schemas/Role"
+            }
+          },
+          {
+            "name": "X-Customer-Id",
+            "in": "header",
+            "required": false,
+            "description": "Required when X-Role=customer; ops/admin may omit",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Final state EXECUTED, or FAILED with reason_code when the reversal fails permanently; decided_by = admin id",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Refund"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHENTICATED: Missing or unknown X-Role, or invalid X-Customer-Id",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "error": {
+                    "code": "UNAUTHENTICATED",
+                    "message": "..."
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "FORBIDDEN: Role not permitted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "error": {
+                    "code": "FORBIDDEN",
+                    "message": "..."
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NOT_FOUND: Unknown refund",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "error": {
+                    "code": "NOT_FOUND",
+                    "message": "..."
+                  }
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "REFUND_ALREADY_DECIDED: Refund is not REQUESTED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "error": {
+                    "code": "REFUND_ALREADY_DECIDED",
+                    "message": "..."
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "INTERNAL_ERROR",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/refunds/{id}/reject": {
+      "post": {
+        "tags": [
+          "Refunds"
+        ],
+        "summary": "Reject a refund",
+        "description": "Roles: admin. Rate limit: none.",
+        "operationId": "post_refunds_id_reject",
+        "parameters": [
+          {
+            "name": "X-Role",
+            "in": "header",
+            "required": true,
+            "description": "customer|ops|admin",
+            "schema": {
+              "$ref": "#/components/schemas/Role"
+            }
+          },
+          {
+            "name": "X-Customer-Id",
+            "in": "header",
+            "required": false,
+            "description": "Required when X-Role=customer; ops/admin may omit",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "state REJECTED, decided_by, reason_code REJECTED_BY_ADMIN; payment stays COMPLETED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Refund"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHENTICATED: Missing or unknown X-Role, or invalid X-Customer-Id",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "error": {
+                    "code": "UNAUTHENTICATED",
+                    "message": "..."
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "FORBIDDEN: Role not permitted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "error": {
+                    "code": "FORBIDDEN",
+                    "message": "..."
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NOT_FOUND: Unknown refund",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "error": {
+                    "code": "NOT_FOUND",
+                    "message": "..."
+                  }
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "REFUND_ALREADY_DECIDED: Refund is not REQUESTED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "error": {
+                    "code": "REFUND_ALREADY_DECIDED",
+                    "message": "..."
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "INTERNAL_ERROR",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/reconciliation/run": {
+      "post": {
+        "tags": [
+          "Reconciliation"
+        ],
+        "summary": "Generate statements and reconcile an IST date",
+        "description": "Idempotent: re-running adds no duplicate results. Roles: ops, admin. Rate limit: none.",
+        "operationId": "post_reconciliation_run",
+        "parameters": [
+          {
+            "name": "X-Role",
+            "in": "header",
+            "required": true,
+            "description": "customer|ops|admin",
+            "schema": {
+              "$ref": "#/components/schemas/Role"
+            }
+          },
+          {
+            "name": "X-Customer-Id",
+            "in": "header",
+            "required": false,
+            "description": "Required when X-Role=customer; ops/admin may omit",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Counts per status",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReconRunResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHENTICATED: Missing or unknown X-Role, or invalid X-Customer-Id",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "error": {
+                    "code": "UNAUTHENTICATED",
+                    "message": "..."
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "FORBIDDEN: Role not permitted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "error": {
+                    "code": "FORBIDDEN",
+                    "message": "..."
+                  }
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "VALIDATION_ERROR: Malformed or future statement_date",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "error": {
+                    "code": "VALIDATION_ERROR",
+                    "message": "..."
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "INTERNAL_ERROR",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReconRunRequest"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/reconciliation/unmatched": {
+      "get": {
+        "tags": [
+          "Reconciliation"
+        ],
+        "summary": "Unresolved non-matched results",
+        "description": "Roles: ops, admin. Rate limit: none.",
+        "operationId": "get_reconciliation_unmatched",
+        "parameters": [
+          {
+            "name": "X-Role",
+            "in": "header",
+            "required": true,
+            "description": "customer|ops|admin",
+            "schema": {
+              "$ref": "#/components/schemas/Role"
+            }
+          },
+          {
+            "name": "X-Customer-Id",
+            "in": "header",
+            "required": false,
+            "description": "Required when X-Role=customer; ops/admin may omit",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "description": "matched is accepted but always returns an empty list",
+            "schema": {
+              "$ref": "#/components/schemas/ReconStatus"
+            }
+          },
+          {
+            "name": "rail",
+            "in": "query",
+            "required": false,
+            "description": "",
+            "schema": {
+              "$ref": "#/components/schemas/Rail"
+            }
+          },
+          {
+            "name": "statement_date",
+            "in": "query",
+            "required": false,
+            "description": "",
+            "schema": {
+              "type": "string",
+              "format": "date",
+              "example": "2026-10-04"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Results with resolved=false and status != matched",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReconResultList"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHENTICATED: Missing or unknown X-Role, or invalid X-Customer-Id",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "error": {
+                    "code": "UNAUTHENTICATED",
+                    "message": "..."
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "FORBIDDEN: Role not permitted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "error": {
+                    "code": "FORBIDDEN",
+                    "message": "..."
+                  }
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "VALIDATION_ERROR: Invalid filter",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "error": {
+                    "code": "VALIDATION_ERROR",
+                    "message": "..."
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "INTERNAL_ERROR",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/reconciliation/{id}/resolve": {
+      "post": {
+        "tags": [
+          "Reconciliation"
+        ],
+        "summary": "Resolve a result with a note",
+        "description": "Never changes payments or amounts. Roles: ops, admin. Rate limit: none.",
+        "operationId": "post_reconciliation_id_resolve",
+        "parameters": [
+          {
+            "name": "X-Role",
+            "in": "header",
+            "required": true,
+            "description": "customer|ops|admin",
+            "schema": {
+              "$ref": "#/components/schemas/Role"
+            }
+          },
+          {
+            "name": "X-Customer-Id",
+            "in": "header",
+            "required": false,
+            "description": "Required when X-Role=customer; ops/admin may omit",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "resolved=true, note stored, resolved_by = caller id",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReconResult"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHENTICATED: Missing or unknown X-Role, or invalid X-Customer-Id",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "error": {
+                    "code": "UNAUTHENTICATED",
+                    "message": "..."
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "FORBIDDEN: Role not permitted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "error": {
+                    "code": "FORBIDDEN",
+                    "message": "..."
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NOT_FOUND: Unknown result",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "error": {
+                    "code": "NOT_FOUND",
+                    "message": "..."
+                  }
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "RECON_ALREADY_RESOLVED: Already resolved",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "error": {
+                    "code": "RECON_ALREADY_RESOLVED",
+                    "message": "..."
+                  }
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "VALIDATION_ERROR: Empty/blank note, note > 500 chars, or result status is matched",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "error": {
+                    "code": "VALIDATION_ERROR",
+                    "message": "..."
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "INTERNAL_ERROR",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ResolveRequest"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/settlement/run": {
+      "post": {
+        "tags": [
+          "Settlement"
+        ],
+        "summary": "Generate settlement file for a business date",
+        "description": "business_date defaults to today IST. Never overwrites an existing file. Roles: admin. Rate limit: none.",
+        "operationId": "post_settlement_run",
+        "parameters": [
+          {
+            "name": "X-Role",
+            "in": "header",
+            "required": true,
+            "description": "customer|ops|admin",
+            "schema": {
+              "$ref": "#/components/schemas/Role"
+            }
+          },
+          {
+            "name": "X-Customer-Id",
+            "in": "header",
+            "required": false,
+            "description": "Required when X-Role=customer; ops/admin may omit",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "First run: primary file written",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SettlementRunResponse"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "Repeat run: follow-up written (file set) or no new file (file null, message says the primary exists)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SettlementRunResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHENTICATED: Missing or unknown X-Role, or invalid X-Customer-Id",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "error": {
+                    "code": "UNAUTHENTICATED",
+                    "message": "..."
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "FORBIDDEN: Role not permitted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "error": {
+                    "code": "FORBIDDEN",
+                    "message": "..."
+                  }
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "VALIDATION_ERROR: Malformed or future business_date",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "error": {
+                    "code": "VALIDATION_ERROR",
+                    "message": "..."
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "INTERNAL_ERROR",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SettlementRunRequest"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/settlement/files": {
+      "get": {
+        "tags": [
+          "Settlement"
+        ],
+        "summary": "List settlement files",
+        "description": "Roles: admin. Rate limit: none.",
+        "operationId": "get_settlement_files",
+        "parameters": [
+          {
+            "name": "X-Role",
+            "in": "header",
+            "required": true,
+            "description": "customer|ops|admin",
+            "schema": {
+              "$ref": "#/components/schemas/Role"
+            }
+          },
+          {
+            "name": "X-Customer-Id",
+            "in": "header",
+            "required": false,
+            "description": "Required when X-Role=customer; ops/admin may omit",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "business_date",
+            "in": "query",
+            "required": false,
+            "description": "",
+            "schema": {
+              "type": "string",
+              "format": "date",
+              "example": "2026-10-04"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Newest business_date first, then sequence",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SettlementFileList"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHENTICATED: Missing or unknown X-Role, or invalid X-Customer-Id",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "error": {
+                    "code": "UNAUTHENTICATED",
+                    "message": "..."
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "FORBIDDEN: Role not permitted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "error": {
+                    "code": "FORBIDDEN",
+                    "message": "..."
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "INTERNAL_ERROR",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/settlement/files/{id}": {
+      "get": {
+        "tags": [
+          "Settlement"
+        ],
+        "summary": "Download a settlement CSV",
+        "description": "Roles: admin. Rate limit: none.",
+        "operationId": "get_settlement_files_id",
+        "parameters": [
+          {
+            "name": "X-Role",
+            "in": "header",
+            "required": true,
+            "description": "customer|ops|admin",
+            "schema": {
+              "$ref": "#/components/schemas/Role"
+            }
+          },
+          {
+            "name": "X-Customer-Id",
+            "in": "header",
+            "required": false,
+            "description": "Required when X-Role=customer; ops/admin may omit",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "text/csv: header, data rows, footer lines '# row_count=N' and '# sha256=<hex>'. Content-Disposition: attachment; filename=<date>-<kind>.csv",
+            "content": {
+              "text/csv": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHENTICATED: Missing or unknown X-Role, or invalid X-Customer-Id",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "error": {
+                    "code": "UNAUTHENTICATED",
+                    "message": "..."
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "FORBIDDEN: Role not permitted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "error": {
+                    "code": "FORBIDDEN",
+                    "message": "..."
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NOT_FOUND: Unknown id",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "error": {
+                    "code": "NOT_FOUND",
+                    "message": "..."
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "INTERNAL_ERROR",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/dashboard/summary": {
+      "get": {
+        "tags": [
+          "Dashboard"
+        ],
+        "summary": "Daily aggregates",
+        "description": "Roles: admin. Rate limit: none.",
+        "operationId": "get_dashboard_summary",
+        "parameters": [
+          {
+            "name": "X-Role",
+            "in": "header",
+            "required": true,
+            "description": "customer|ops|admin",
+            "schema": {
+              "$ref": "#/components/schemas/Role"
+            }
+          },
+          {
+            "name": "X-Customer-Id",
+            "in": "header",
+            "required": false,
+            "description": "Required when X-Role=customer; ops/admin may omit",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "date",
+            "in": "query",
+            "required": false,
+            "description": "IST date, default today IST",
+            "schema": {
+              "type": "string",
+              "format": "date",
+              "example": "2026-10-04"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Always all four rails and four states; zeros when empty",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Dashboard"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHENTICATED: Missing or unknown X-Role, or invalid X-Customer-Id",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "error": {
+                    "code": "UNAUTHENTICATED",
+                    "message": "..."
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "FORBIDDEN: Role not permitted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "error": {
+                    "code": "FORBIDDEN",
+                    "message": "..."
+                  }
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "VALIDATION_ERROR: Malformed or future date",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "error": {
+                    "code": "VALIDATION_ERROR",
+                    "message": "..."
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "INTERNAL_ERROR",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/ops/stuck-payments": {
+      "get": {
+        "tags": [
+          "Operations"
+        ],
+        "summary": "Payments stuck in SUBMITTED > 300 s",
+        "description": "Roles: ops, admin. Rate limit: none.",
+        "operationId": "get_ops_stuck_payments",
+        "parameters": [
+          {
+            "name": "X-Role",
+            "in": "header",
+            "required": true,
+            "description": "customer|ops|admin",
+            "schema": {
+              "$ref": "#/components/schemas/Role"
+            }
+          },
+          {
+            "name": "X-Customer-Id",
+            "in": "header",
+            "required": false,
+            "description": "Required when X-Role=customer; ops/admin may omit",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Runs detection first, then lists flagged SUBMITTED payments",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StuckPaymentList"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHENTICATED: Missing or unknown X-Role, or invalid X-Customer-Id",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "error": {
+                    "code": "UNAUTHENTICATED",
+                    "message": "..."
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "FORBIDDEN: Role not permitted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "error": {
+                    "code": "FORBIDDEN",
+                    "message": "..."
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "INTERNAL_ERROR",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/simulation": {
+      "get": {
+        "tags": [
+          "Admin simulation"
+        ],
+        "summary": "Config of all four rails",
+        "description": "Roles: admin. Rate limit: none.",
+        "operationId": "get_admin_simulation",
+        "parameters": [
+          {
+            "name": "X-Role",
+            "in": "header",
+            "required": true,
+            "description": "customer|ops|admin",
+            "schema": {
+              "$ref": "#/components/schemas/Role"
+            }
+          },
+          {
+            "name": "X-Customer-Id",
+            "in": "header",
+            "required": false,
+            "description": "Required when X-Role=customer; ops/admin may omit",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default success for all rails",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SimulationList"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHENTICATED: Missing or unknown X-Role, or invalid X-Customer-Id",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "error": {
+                    "code": "UNAUTHENTICATED",
+                    "message": "..."
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "FORBIDDEN: Role not permitted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "error": {
+                    "code": "FORBIDDEN",
+                    "message": "..."
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "INTERNAL_ERROR",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/simulation/{rail}": {
+      "put": {
+        "tags": [
+          "Admin simulation"
+        ],
+        "summary": "Set mock rail behaviour",
+        "description": "Roles: admin. Rate limit: none.",
+        "operationId": "put_admin_simulation_rail",
+        "parameters": [
+          {
+            "name": "X-Role",
+            "in": "header",
+            "required": true,
+            "description": "customer|ops|admin",
+            "schema": {
+              "$ref": "#/components/schemas/Role"
+            }
+          },
+          {
+            "name": "X-Customer-Id",
+            "in": "header",
+            "required": false,
+            "description": "Required when X-Role=customer; ops/admin may omit",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "rail",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/Rail"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Echo of stored config (in-memory; resets on restart)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SimulationConfig"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHENTICATED: Missing or unknown X-Role, or invalid X-Customer-Id",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "error": {
+                    "code": "UNAUTHENTICATED",
+                    "message": "..."
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "FORBIDDEN: Role not permitted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "error": {
+                    "code": "FORBIDDEN",
+                    "message": "..."
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NOT_FOUND: Unknown rail",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "error": {
+                    "code": "NOT_FOUND",
+                    "message": "..."
+                  }
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "VALIDATION_ERROR: permanent_failure without valid reason_code, transient without rate, or rate outside [0,1]",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "error": {
+                    "code": "VALIDATION_ERROR",
+                    "message": "..."
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "INTERNAL_ERROR",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SimulationUpdate"
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "Error": {
+        "type": "object",
+        "required": [
+          "error"
+        ],
+        "properties": {
+          "error": {
+            "type": "object",
+            "required": [
+              "code",
+              "message"
+            ],
+            "properties": {
+              "code": {
+                "type": "string",
+                "enum": [
+                  "UNAUTHENTICATED",
+                  "FORBIDDEN",
+                  "NOT_FOUND",
+                  "VALIDATION_ERROR",
+                  "AMOUNT_BELOW_MINIMUM",
+                  "PAYMENT_NOT_REFUNDABLE",
+                  "IDEMPOTENCY_KEY_CONFLICT",
+                  "REFUND_ALREADY_EXISTS",
+                  "REFUND_ALREADY_DECIDED",
+                  "RECON_ALREADY_RESOLVED",
+                  "INTERNAL_ERROR"
+                ]
+              },
+              "message": {
+                "type": "string"
+              },
+              "fields": {
+                "type": "array",
+                "description": "Only on 422",
+                "items": {
+                  "type": "object",
+                  "required": [
+                    "field",
+                    "message"
+                  ],
+                  "properties": {
+                    "field": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "Role": {
+        "type": "string",
+        "enum": [
+          "customer",
+          "ops",
+          "admin"
+        ]
+      },
+      "Rail": {
+        "type": "string",
+        "enum": [
+          "UPI",
+          "IMPS",
+          "NEFT",
+          "RTGS"
+        ]
+      },
+      "PaymentState": {
+        "type": "string",
+        "enum": [
+          "CREATED",
+          "SUBMITTED",
+          "COMPLETED",
+          "FAILED"
+        ]
+      },
+      "RefundState": {
+        "type": "string",
+        "enum": [
+          "REQUESTED",
+          "APPROVED",
+          "EXECUTED",
+          "REJECTED",
+          "FAILED"
+        ]
+      },
+      "ReconStatus": {
+        "type": "string",
+        "enum": [
+          "matched",
+          "unmatched_internal",
+          "unmatched_external",
+          "amount_mismatch"
+        ]
+      },
+      "Customer": {
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "role"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "example": "cus_001"
+          },
+          "name": {
+            "type": "string"
+          },
+          "role": {
+            "$ref": "#/components/schemas/Role"
+          }
+        }
+      },
+      "Health": {
+        "type": "object",
+        "required": [
+          "status",
+          "database"
+        ],
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "ok",
+              "error"
+            ]
+          },
+          "database": {
+            "type": "string",
+            "enum": [
+              "ok",
+              "error"
+            ]
+          }
+        }
+      },
+      "RefundSummary": {
+        "type": "object",
+        "nullable": true,
+        "required": [
+          "id",
+          "state",
+          "reason_code"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "state": {
+            "$ref": "#/components/schemas/RefundState"
+          },
+          "reason_code": {
+            "type": "string",
+            "nullable": true
+          }
+        }
+      },
+      "Payment": {
+        "type": "object",
+        "required": [
+          "id",
+          "customer_id",
+          "amount_paise",
+          "rail",
+          "beneficiary",
+          "state",
+          "reason_code",
+          "rail_reference",
+          "refund",
+          "created_at",
+          "updated_at"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "example": "pay_3f9a1c07b2de"
+          },
+          "customer_id": {
+            "type": "string"
+          },
+          "amount_paise": {
+            "type": "integer",
+            "minimum": 100
+          },
+          "rail": {
+            "$ref": "#/components/schemas/Rail"
+          },
+          "beneficiary": {
+            "type": "string"
+          },
+          "state": {
+            "$ref": "#/components/schemas/PaymentState"
+          },
+          "reason_code": {
+            "type": "string",
+            "nullable": true
+          },
+          "rail_reference": {
+            "type": "string",
+            "nullable": true
+          },
+          "refund": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/RefundSummary"
+              }
+            ],
+            "nullable": true
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "example": "2026-10-04T09:30:00Z"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "example": "2026-10-04T09:30:00Z"
+          }
+        }
+      },
+      "PaymentEvent": {
+        "type": "object",
+        "required": [
+          "id",
+          "type",
+          "payload",
+          "at"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "PAYMENT_CREATED",
+              "PAYMENT_SUBMITTED",
+              "PAYMENT_RETRY_SCHEDULED",
+              "PAYMENT_COMPLETED",
+              "PAYMENT_FAILED",
+              "PAYMENT_FLAGGED_STUCK",
+              "REFUND_REQUESTED",
+              "REFUND_APPROVED",
+              "REFUND_REJECTED",
+              "REFUND_EXECUTED",
+              "REFUND_FAILED"
+            ]
+          },
+          "payload": {
+            "type": "object",
+            "additionalProperties": true
+          },
+          "at": {
+            "type": "string",
+            "format": "date-time",
+            "example": "2026-10-04T09:30:00Z"
+          }
+        }
+      },
+      "PaymentAttempt": {
+        "type": "object",
+        "required": [
+          "attempt_no",
+          "outcome",
+          "error_code",
+          "at"
+        ],
+        "properties": {
+          "attempt_no": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "outcome": {
+            "type": "string",
+            "enum": [
+              "success",
+              "transient",
+              "permanent"
+            ]
+          },
+          "error_code": {
+            "type": "string",
+            "nullable": true
+          },
+          "at": {
+            "type": "string",
+            "format": "date-time",
+            "example": "2026-10-04T09:30:00Z"
+          }
+        }
+      },
+      "PaymentDetail": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/Payment"
+          },
+          {
+            "type": "object",
+            "required": [
+              "events",
+              "attempts"
+            ],
+            "properties": {
+              "events": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/PaymentEvent"
+                }
+              },
+              "attempts": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/PaymentAttempt"
+                }
+              }
+            }
+          }
+        ]
+      },
+      "CreatePaymentRequest": {
+        "type": "object",
+        "required": [
+          "amount_paise",
+          "beneficiary"
+        ],
+        "properties": {
+          "amount_paise": {
+            "type": "integer",
+            "minimum": 100
+          },
+          "beneficiary": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 140
+          }
+        }
+      },
+      "PaymentList": {
+        "type": "object",
+        "required": [
+          "items",
+          "total"
+        ],
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Payment"
+            }
+          },
+          "total": {
+            "type": "integer"
+          }
+        }
+      },
+      "CustomerList": {
+        "type": "object",
+        "required": [
+          "items",
+          "total"
+        ],
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Customer"
+            }
+          },
+          "total": {
+            "type": "integer"
+          }
+        }
+      },
+      "Refund": {
+        "type": "object",
+        "required": [
+          "id",
+          "payment_id",
+          "amount_paise",
+          "state",
+          "requested_by",
+          "decided_by",
+          "reason_code",
+          "created_at",
+          "updated_at"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "payment_id": {
+            "type": "string"
+          },
+          "amount_paise": {
+            "type": "integer",
+            "minimum": 100
+          },
+          "state": {
+            "$ref": "#/components/schemas/RefundState"
+          },
+          "requested_by": {
+            "type": "string"
+          },
+          "decided_by": {
+            "type": "string",
+            "nullable": true
+          },
+          "reason_code": {
+            "type": "string",
+            "nullable": true
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "example": "2026-10-04T09:30:00Z"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "example": "2026-10-04T09:30:00Z"
+          }
+        }
+      },
+      "RefundList": {
+        "type": "object",
+        "required": [
+          "items",
+          "total"
+        ],
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Refund"
+            }
+          },
+          "total": {
+            "type": "integer"
+          }
+        }
+      },
+      "CreateRefundRequest": {
+        "type": "object",
+        "required": [
+          "payment_id"
+        ],
+        "properties": {
+          "payment_id": {
+            "type": "string"
+          }
+        }
+      },
+      "ReconRunRequest": {
+        "type": "object",
+        "required": [
+          "statement_date"
+        ],
+        "properties": {
+          "statement_date": {
+            "type": "string",
+            "format": "date",
+            "example": "2026-10-04"
+          }
+        }
+      },
+      "ReconRunResponse": {
+        "type": "object",
+        "required": [
+          "statement_date",
+          "counts"
+        ],
+        "properties": {
+          "statement_date": {
+            "type": "string",
+            "format": "date",
+            "example": "2026-10-04"
+          },
+          "counts": {
+            "type": "object",
+            "required": [
+              "matched",
+              "unmatched_internal",
+              "unmatched_external",
+              "amount_mismatch"
+            ],
+            "properties": {
+              "matched": {
+                "type": "integer"
+              },
+              "unmatched_internal": {
+                "type": "integer"
+              },
+              "unmatched_external": {
+                "type": "integer"
+              },
+              "amount_mismatch": {
+                "type": "integer"
+              }
+            }
+          }
+        }
+      },
+      "ReconResult": {
+        "type": "object",
+        "required": [
+          "id",
+          "statement_date",
+          "rail",
+          "status",
+          "payment_id",
+          "statement_entry_id",
+          "payment_ref",
+          "payment_amount_paise",
+          "statement_amount_paise",
+          "resolved",
+          "resolution_note",
+          "resolved_by",
+          "resolved_at"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "statement_date": {
+            "type": "string",
+            "format": "date",
+            "example": "2026-10-04"
+          },
+          "rail": {
+            "$ref": "#/components/schemas/Rail"
+          },
+          "status": {
+            "$ref": "#/components/schemas/ReconStatus"
+          },
+          "payment_id": {
+            "type": "string",
+            "nullable": true
+          },
+          "statement_entry_id": {
+            "type": "string",
+            "nullable": true
+          },
+          "payment_ref": {
+            "type": "string",
+            "nullable": true
+          },
+          "payment_amount_paise": {
+            "type": "integer",
+            "nullable": true
+          },
+          "statement_amount_paise": {
+            "type": "integer",
+            "nullable": true
+          },
+          "resolved": {
+            "type": "boolean"
+          },
+          "resolution_note": {
+            "type": "string",
+            "nullable": true
+          },
+          "resolved_by": {
+            "type": "string",
+            "nullable": true
+          },
+          "resolved_at": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          }
+        }
+      },
+      "ReconResultList": {
+        "type": "object",
+        "required": [
+          "items",
+          "total"
+        ],
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ReconResult"
+            }
+          },
+          "total": {
+            "type": "integer"
+          }
+        }
+      },
+      "ResolveRequest": {
+        "type": "object",
+        "required": [
+          "note"
+        ],
+        "properties": {
+          "note": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 500
+          }
+        }
+      },
+      "SettlementFile": {
+        "type": "object",
+        "required": [
+          "id",
+          "business_date",
+          "kind",
+          "row_count",
+          "checksum",
+          "written_at"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "business_date": {
+            "type": "string",
+            "format": "date",
+            "example": "2026-10-04"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "primary",
+              "followup"
+            ]
+          },
+          "row_count": {
+            "type": "integer"
+          },
+          "checksum": {
+            "type": "string",
+            "description": "SHA-256 hex of data rows"
+          },
+          "written_at": {
+            "type": "string",
+            "format": "date-time",
+            "example": "2026-10-04T09:30:00Z"
+          }
+        }
+      },
+      "SettlementFileList": {
+        "type": "object",
+        "required": [
+          "items",
+          "total"
+        ],
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SettlementFile"
+            }
+          },
+          "total": {
+            "type": "integer"
+          }
+        }
+      },
+      "SettlementRunRequest": {
+        "type": "object",
+        "properties": {
+          "business_date": {
+            "type": "string",
+            "format": "date",
+            "example": "2026-10-04"
+          }
+        }
+      },
+      "SettlementRunResponse": {
+        "type": "object",
+        "required": [
+          "file",
+          "message"
+        ],
+        "properties": {
+          "file": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/SettlementFile"
+              }
+            ],
+            "nullable": true
+          },
+          "message": {
+            "type": "string"
+          }
+        }
+      },
+      "StuckPayment": {
+        "type": "object",
+        "required": [
+          "payment_id",
+          "rail",
+          "amount_paise",
+          "submitted_at",
+          "flagged_at",
+          "age_seconds"
+        ],
+        "properties": {
+          "payment_id": {
+            "type": "string"
+          },
+          "rail": {
+            "$ref": "#/components/schemas/Rail"
+          },
+          "amount_paise": {
+            "type": "integer"
+          },
+          "submitted_at": {
+            "type": "string",
+            "format": "date-time",
+            "example": "2026-10-04T09:30:00Z"
+          },
+          "flagged_at": {
+            "type": "string",
+            "format": "date-time",
+            "example": "2026-10-04T09:30:00Z"
+          },
+          "age_seconds": {
+            "type": "integer"
+          }
+        }
+      },
+      "StuckPaymentList": {
+        "type": "object",
+        "required": [
+          "items",
+          "total"
+        ],
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/StuckPayment"
+            }
+          },
+          "total": {
+            "type": "integer"
+          }
+        }
+      },
+      "SimulationConfig": {
+        "type": "object",
+        "required": [
+          "rail",
+          "mode",
+          "reason_code",
+          "transient_failure_rate"
+        ],
+        "properties": {
+          "rail": {
+            "$ref": "#/components/schemas/Rail"
+          },
+          "mode": {
+            "type": "string",
+            "enum": [
+              "success",
+              "permanent_failure",
+              "transient"
+            ]
+          },
+          "reason_code": {
+            "type": "string",
+            "nullable": true,
+            "enum": [
+              "INSUFFICIENT_FUNDS",
+              "INVALID_BENEFICIARY",
+              "BENEFICIARY_ACCOUNT_CLOSED",
+              "LIMIT_EXCEEDED",
+              null
+            ]
+          },
+          "transient_failure_rate": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          }
+        }
+      },
+      "SimulationList": {
+        "type": "object",
+        "required": [
+          "items"
+        ],
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SimulationConfig"
+            }
+          }
+        }
+      },
+      "SimulationUpdate": {
+        "type": "object",
+        "required": [
+          "mode"
+        ],
+        "properties": {
+          "mode": {
+            "type": "string",
+            "enum": [
+              "success",
+              "permanent_failure",
+              "transient"
+            ]
+          },
+          "reason_code": {
+            "type": "string",
+            "enum": [
+              "INSUFFICIENT_FUNDS",
+              "INVALID_BENEFICIARY",
+              "BENEFICIARY_ACCOUNT_CLOSED",
+              "LIMIT_EXCEEDED"
+            ],
+            "description": "Required when mode=permanent_failure"
+          },
+          "transient_failure_rate": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1,
+            "description": "Required when mode=transient"
+          }
+        }
+      },
+      "Dashboard": {
+        "type": "object",
+        "required": [
+          "date",
+          "rails",
+          "status_counts",
+          "pending_refunds",
+          "settlement_files"
+        ],
+        "properties": {
+          "date": {
+            "type": "string",
+            "format": "date",
+            "example": "2026-10-04"
+          },
+          "rails": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "rail",
+                "payment_count",
+                "total_paise"
+              ],
+              "properties": {
+                "rail": {
+                  "$ref": "#/components/schemas/Rail"
+                },
+                "payment_count": {
+                  "type": "integer"
+                },
+                "total_paise": {
+                  "type": "integer"
+                }
+              }
+            }
+          },
+          "status_counts": {
+            "type": "object",
+            "required": [
+              "CREATED",
+              "SUBMITTED",
+              "COMPLETED",
+              "FAILED"
+            ],
+            "properties": {
+              "CREATED": {
+                "type": "integer"
+              },
+              "SUBMITTED": {
+                "type": "integer"
+              },
+              "COMPLETED": {
+                "type": "integer"
+              },
+              "FAILED": {
+                "type": "integer"
+              }
+            }
+          },
+          "pending_refunds": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Refund"
+            }
+          },
+          "settlement_files": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SettlementFile"
+            }
+          }
+        }
+      }
+    }
+  }
+}

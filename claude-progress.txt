@@ -1,0 +1,89 @@
+=== Session 5 (RESET — ready to implement) ===
+date: 2026-10-05
+mode: manual, one story at a time via /implement (NOT /auto or /build)
+pipeline_done: /brd, /spec, /design — all approved (specs/brd, specs/stories, specs/features.json, specs/design)
+code_state: backend/, frontend/, data/, .run/ deleted. No generated code exists. specs/features.json reset: 0 / 138 passing.
+groups_completed: []
+current_story: E1-S1 (types and config layer)
+sprint_contract: none (contracts in sprint-contracts/ predate the reset; create per story as needed)
+last_commit: none (git operations suspended by user instruction: no branches, commits, pushes)
+features_passing: 0 / 138
+coverage: n/a (baseline reset to 0; floor 80%)
+learned_rules: 0
+blocked_stories: none
+
+Per-story constraints (user, 2026-10-05):
+- No GAN design loops; max ONE design-critic pass per UI story; design threshold 6
+- No parallel agent teams; one generator, one evaluator, sequential
+- Playwright once per story, snapshots only; no repeated browser scoring loops
+- Coverage floor 80% (not 100%)
+- Self-healing: max 1 attempt
+
+next_action: Run /implement for E1-S1.
+
+=== Session 5 update: E1-S1 closed with known failure ===
+E1-S1: F001, F002, F003, F005 passing; F004 FAILING (known, accepted by user 2026-10-05). Cause: is_valid_transition(entity, current, target) takes 3 args but the F004 step calls it with 2. Self-heal attempt used. Options left open: infer entity from state type, or edit step text. Revisit later.
+features_passing: 4 / 138
+current_story: E1-S2 (SQLite schema and repositories)
+next_action: /implement E1-S2
+
+=== Session 5 end (PAUSED BY USER, resume next day) ===
+date: 2026-10-05
+completed: E1-S1 (F004 failing, accepted), E1-S2 (F006-F010 pass), E1-S3 (F011-F015 pass)
+features_passing: see specs/features.json (F004 only known failure)
+coverage: backend 98.5% (109 tests); floor 80%
+git: none (suspended by user)
+notes: uvicorn added; settings.py validation added; PAYBRIDGE_* env names. Stub GET /admin/simulation exists (real behaviour in later story). api/schemas/common.py missing (minor contract deviation).
+open_items: F004 (is_valid_transition arity: infer entity from state type, or edit step text); rail ports revisable in E2-S4; Entity Literal alias unused in state_machine.py
+constraints: one story at a time via /implement; one generator then one evaluator, sequential; no GAN loops; 1 critic pass max (threshold 6); Playwright once per story; coverage floor 80%; 1 self-heal; minimal thinking, short output
+next_action: /implement E1-S4 (first UI story)
+
+=== Session 6 ===
+E1-S4 closed: F016 (accepted env limit), F017, F019 pass; F018 FAILING (known): contract D-PW-03 needs ops/admin API requests that no view makes yet; apiRequest for ops/admin has no unit test. Design critic 5.27 < 6, accepted by user. Self-heal used.
+Minor: stale X-Customer-Id sent after switching to Ops/Admin; playwright.config baseURL 5173 vs dev server 3000; no frontend/e2e dir.
+Known failures: F004, F018.
+next_action: /implement E2-S1
+
+=== Session 6 update ===
+Done+passing: E2-S1 (F020-23), E2-S2 (F024-28), E2-S4 (F034-37), E2-S3 (F029-33), E3-S1 F038-40,F042.
+Known failures: F004, F018, F041.
+F041: 200 replay notice not visible. Likely cause: FlashBanner (ui/App.tsx) calls takeFlash() (reads+removes) in a useState initializer; StrictMode double-invokes it so notice is consumed. Fix: ref-guarded useEffect read / clear on unmount. Also e2e/e3-s1.spec.ts line ~45 wraps the notice assertion in .catch() (can't fail) - make strict. Self-heal used.
+Review leftovers (E3-S1): move MIN_PAISE/rail thresholds to config/; navigate() DOM side effect out of service layer; errorMessages -> config/messages; split page into hook + presentational; vite.config: pin host 127.0.0.1, strictPort, configDefaults.exclude.
+Security leftovers: X-Role/X-Customer-Id header stub (demo only); validate customerId pattern; rotate idempotency key after 409 edit; npm audit.
+Mock rail ledger keyed by payment id only (all rails return same ref).
+next_action: E3-S2 then E3-S3, then STOP and report (MVP slice complete).
+
+=== Session 6 end: MVP slice complete (E1-S1..S4, E2-S1..S4, E3-S1..S3) ===
+STOPPED per user. Known failures: F004, F018, F041. E3-S2/S3 passing (F043-F050).
+Tests: backend 131 (98.96%), frontend 40 (99.88%). No design-critic pass run for E3 stories. No git operations.
+Process note: E3-S2 evaluator exceeded Playwright limit (5 invocations); E3-S3 evaluator used 1.
+next_action: user review of running app (bash init.sh); then decide on known failures + review leftovers, then E4+.
+
+=== Session 7 ===
+F004, F041 fixed and verified (1 Playwright run, 5/5). Layering moves done (config/rails.ts, ui/hooks/navigate.ts). No known failures. 138 features: see specs/features.json.
+Created frontend/.claude/hooks/require-review.js as a no-op (user request); real hook is root-relative, so cwd must be project root.
+Review leftovers (post-fix): remove 2 unused `# type: ignore[arg-type]` in backend/tests/unit/test_enums_state_machine.py:98,100; App.test.tsx add sessionStorage.clear() + negative cases; Rail type placed in config/ (move to types/); MIN_PAISE check duplicated in railPreview/validation; 'Enter a beneficiary' inline literal; boundary tests for railPreview/validation; navigate() path guard (single leading '/'); check PaymentDetailPage encodeURIComponent on id; vite.config host pin; dev-tool upgrade (vite/vitest audit, dev-only).
+Now: E4-S1 in progress (then E4-S2..S5 in dependency order, same constraints).
+
+=== Session 8 (E4-S2 .. onward, auto-sequence to E9-S3) ===
+Passed: E4-S2..S5 (F056-F072), E5-S1 (F073-F077), E5-S2 (F078-F082).
+Observations: (a) transient rail error on refund reversal -> 500, refund stays APPROVED, no retry (not in story); (b) F081 text cites REVERSAL_REJECTED but it is not in the reason-code enum (PUT /admin/simulation 422) - spec/feature text needs aligning, verified with LIMIT_EXCEEDED; (c) /admin/simulation/{rail} is case-sensitive; (d) ops can GET /refunds (not in story); (e) generator-spawned evaluators judge from tests only - orchestrator evaluator runs live probes.
+Next: E5-S3, E5-S4, E6-S1..S3, E7-S1..S3, E8-S1..S2, E9-S1..S3 then STOP.
+E5-S3 passed (F083-86, UI level; real refund flow covered live in E5-S4 spec). E5-S4 passed (F087-90; live approve/reject OK). 
+REGRESSION: F019 FAILING - generator added 'Refunds' admin nav item (/refunds); F019/E1-S4 say admin nav is exactly Dashboard, Settlement, Simulation. Resolve at E8-S2 (dashboard): link refund queue from Dashboard and remove nav item, OR amend F019/E1-S4 to include Refunds (user decision). Also admin nav currently lacks nothing else; stuck-payments is ops nav.
+E6-S3 passed (F102-105). E7-S1 passed (F106-110).
+ASSUMPTION (needs user review): UTC-vs-IST date mismatch - StatementService/ReconciliationService used payments_repo.list_completed_on (UTC date prefix) while settlement uses IST days. Decision taken without user input: IST business dates everywhere (switch list_completed_on callers to IST window via list_completed_between), done at start of E7-S2.
+Not implemented: settlement crash-adoption of orphan final file (design mentions; next run would raise FileExistsError).
+Backend security scan (after E7-S2): no SQLi, no PII in logs. Hardening backlog: VULN-001 header identity (accepted demo risk; resolved_by/decided_by hard-coded adm_001/ops_001); VULN-002 settlement download path containment + 404 on missing file; VULN-003 beneficiary/payment_id length limits; VULN-004 CSV via csv module / validate rail_reference (formula injection); VULN-005 settlement temp file mode 0600/O_EXCL + unique tmp name; VULN-006 simulation router prod gating; security headers, rate limits, settlement list limit. Responses return beneficiary unmasked (NFR-03 covers logs).
+Backend clean-code review (after E7-S2) - blocking-class debt for a hardening pass: (1) routes reconciliation/settlement/refunds contain business logic + import repositories (move to services); (2) mixed Database/sqlite3 vs injected repos in services (refund_service imports sqlite3); (3) settlement_service writes file BEFORE DB insert (failed insert leaves 0444 file blocking retry), dedup parses CSVs from disk, run() mixes jobs; (4) settlement download: missing file -> 500; (5) outbox_worker: KeyError on missing adapter outside try, run() has no try/except (one exception kills worker), no state guard before re-submit; (6) refund approve: assert payment, TransientRailError leaves refund APPROVED forever. Minor: dedupe make_event/date parsing/iso_z, hard-coded actors, SQL-side filters/limits, bind PaymentState values in SQL, return rowcount from mark_* updates, typed dataclasses instead of dict[str,object], remove type: ignore in reconciliation_service.
+E7-S2 (F111-114) + IST fix verified; E7-S3 (F115-118) passed; E8-S1 (F119-123) passed. pending_refunds = all REQUESTED refunds regardless of date (spec silent; clarify). Dev-data side effect: evaluator POST /settlement/run wrote today's primary settlement file in backend/data.
+ASSUMPTION (needs user review): F019 regression resolved at E8-S2 by linking the refund queue (/refunds route kept) from the Dashboard and removing the 'Refunds' admin nav item so admin nav = Dashboard, Settlement, Simulation again.
+E8-S2 passed (F124-127), F019 passing again. Dashboard requests /dashboard/summary 10x per load (each tile fetches separately) - perf debt: share one fetch.
+Next: E9-S1, E9-S2, E9-S3 then STOP and report final status; wait for user command.
+
+=== Session 8 end: ALL STORIES E1-S1..E9-S3 IMPLEMENTED; stopped per user, awaiting command ===
+Failing: F136 (e9-s3 keyboard flow) - spec defect: toHaveURL(/\/payments\/[A-Za-z0-9_-]+$/) matches /payments/new immediately; app reaches the detail page. Fix = exclude 'new' / wait for pay_ id (1-line test fix; self-heal cap reached).
+E9-S3 gaps: /stuck-payments axe-scanned only in empty state; reconciliation unmatched row mocked; F138 spec doesn't cover rail preview/settlement badges/recon/stuck statuses (evaluator sanity spec covered the first two).
+Assumptions needing review: IST business dates everywhere; F019 resolved via dashboard link (Refunds nav item removed); pending_refunds = all REQUESTED; statements generated from COMPLETED payments (no JSONL ledger); beneficiary masking via registry; resolved_by/decided_by hard-coded adm_001/ops_001.
+Backlogs: security (VULN-001..006), clean-code (routes->services layering, outbox worker robustness, refund transient error, settlement write-before-insert/crash adoption), dashboard 10x summary fetch, frontend dev-tool audit (vite/vitest), E3-S1 review leftovers, F081 REVERSAL_REJECTED wording, e2e specs added by evaluators left in frontend/e2e.
+Git: untouched (no branch/commits).

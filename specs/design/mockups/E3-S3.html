@@ -1,0 +1,641 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>E3-S3 Payment detail with timeline and polling - PayBridge mockup</title>
+<!--
+  PayBridge mockup E3-S3: Payment detail with timeline and polling
+  Self-contained: all CSS and JS inline, no external requests. Data is hardcoded and uses the field names from specs/design/conventions.md.
+  API calls this screen represents: GET /payments/{id} polled every 2000 ms while CREATED or SUBMITTED
+  Open with ?state=empty|loading|error and ?role=customer|ops|admin to preset the state, or use the Mockup controls bar.
+-->
+<style>
+/* ===== tokens.css (identical in every mockup) ===== */
+:root{
+  --color-bg:#F4F6FA;
+  --color-surface:#FFFFFF;
+  --color-surface-sunken:#EAEFF6;
+  --color-text:#101C32;
+  --color-text-secondary:#44506A;
+  --color-text-muted:#566178;
+  --color-primary:#0B57B7;
+  --color-primary-hover:#09448F;
+  --color-on-primary:#FFFFFF;
+  --color-link:#0B57B7;
+  --color-border-strong:#6B7689;
+  --color-divider:#D3DAE6;
+  --color-focus-ring:#0B57B7;
+  --color-focus-ring-on-dark:#FFD166;
+  --color-nav-bg:#0B2545;
+  --color-nav-text:#FFFFFF;
+  --color-nav-text-muted:#BFD0E6;
+  --color-nav-active-bg:#1B4577;
+  --color-dev-bg:#1F2937;
+  --color-dev-text:#F9FAFB;
+  --color-neutral-bg:#E6EBF3;
+  --color-neutral-text:#2E3A52;
+  --color-info-bg:#E1EDFF;
+  --color-info-text:#0A3F86;
+  --color-success-bg:#E3F5EA;
+  --color-success-text:#0B6A33;
+  --color-warn-bg:#FFF3D1;
+  --color-warn-text:#6F4A00;
+  --color-danger-bg:#FDECEC;
+  --color-danger-text:#A1161B;
+  --color-danger-border:#C0262B;
+  --color-danger-solid:#B3201F;
+  --color-disabled-bg:#E1E5EC;
+  --color-disabled-text:#566178;
+  --color-placeholder:#5F6B80;
+  --color-skeleton:#DCE3EE;
+  --color-skeleton-hi:#EEF2F8;
+  --font-sans:"Segoe UI","Helvetica Neue","Noto Sans","Liberation Sans",sans-serif;
+  --font-mono:ui-monospace,"SF Mono",Menlo,Consolas,"Liberation Mono",monospace;
+  --fs-xs:12px;--fs-sm:14px;--fs-md:16px;--fs-lg:18px;--fs-xl:22px;--fs-2xl:28px;--fs-3xl:34px;
+  --lh-tight:1.25;--lh-body:1.5;
+  --s-1:4px;--s-2:8px;--s-3:12px;--s-4:16px;--s-5:24px;--s-6:32px;--s-7:40px;--s-8:56px;
+  --radius-sm:4px;--radius-md:8px;--radius-lg:12px;--radius-pill:999px;
+  --elev-0:none;--elev-1:0 1px 2px rgba(16,28,50,.08);--elev-2:0 4px 12px rgba(16,28,50,.12);--elev-3:0 12px 32px rgba(16,28,50,.24);
+}
+/* ---- Base ---- */
+*,*::before,*::after{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--color-bg);color:var(--color-text);font-family:var(--font-sans);font-size:var(--fs-md);line-height:var(--lh-body);overflow-x:hidden}
+h1,h2,h3{margin:0;line-height:var(--lh-tight);font-weight:650;letter-spacing:-0.01em}
+h1{font-size:var(--fs-2xl)}h2{font-size:var(--fs-xl)}h3{font-size:var(--fs-lg)}
+p{margin:0}
+a{color:var(--color-link);text-underline-offset:3px}
+a:hover{color:var(--color-primary-hover)}
+code,.mono{font-family:var(--font-mono);font-size:.92em}
+:focus-visible{outline:3px solid var(--color-focus-ring);outline-offset:2px;border-radius:var(--radius-sm)}
+.on-dark :focus-visible{outline-color:var(--color-focus-ring-on-dark)}
+.sr-only{position:absolute!important;width:1px;height:1px;margin:-1px;padding:0;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
+.skip{position:absolute;left:var(--s-3);top:-100px;background:var(--color-surface);color:var(--color-text);padding:var(--s-2) var(--s-3);border-radius:var(--radius-md);z-index:100;box-shadow:var(--elev-3)}
+.skip:focus{top:var(--s-3)}
+/* ---- Dev bar (mockup only) ---- */
+.devbar{background:var(--color-dev-bg);color:var(--color-dev-text);font-size:var(--fs-sm);padding:var(--s-2) var(--s-4);display:flex;flex-wrap:wrap;gap:var(--s-2) var(--s-4);align-items:center}
+.devbar strong{letter-spacing:.04em;text-transform:uppercase;font-size:var(--fs-xs)}
+.devbar label{display:inline-flex;align-items:center;gap:var(--s-2)}
+.devbar select{font:inherit;font-size:var(--fs-sm);min-height:32px;border-radius:var(--radius-sm);border:1px solid var(--color-border-strong);background:var(--color-surface);color:var(--color-text);padding:0 var(--s-2);max-width:100%}
+.devbar input[type=checkbox]{width:18px;height:18px}
+.devbar :focus-visible{outline-color:var(--color-focus-ring-on-dark)}
+.devbar #dev-extra{display:contents}
+body.hide-api .api-tag{display:none}
+.api-tag{display:inline-block;font-family:var(--font-mono);font-size:var(--fs-xs);color:var(--color-text-secondary);background:var(--color-surface-sunken);border:1px dashed var(--color-border-strong);border-radius:var(--radius-sm);padding:1px var(--s-2);margin-left:var(--s-2);vertical-align:middle;white-space:normal;overflow-wrap:anywhere}
+.appbar .api-tag,.nav .api-tag{background:transparent;color:var(--color-nav-text-muted);border-color:var(--color-nav-text-muted)}
+/* ---- App shell ---- */
+.appbar{background:var(--color-nav-bg);color:var(--color-nav-text);display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:var(--s-3) var(--s-6);padding:var(--s-3) var(--s-4)}
+.appbar.on-dark label{color:var(--color-nav-text-muted);font-size:var(--fs-sm);font-weight:600}
+.brand{display:flex;align-items:center;gap:var(--s-2);font-weight:700;font-size:var(--fs-lg);letter-spacing:-.01em}
+.brand-mark{width:28px;height:28px;border-radius:var(--radius-md);background:var(--color-nav-active-bg);display:grid;place-items:center;border:1px solid var(--color-nav-text-muted);font-size:var(--fs-sm)}
+.session{display:flex;flex-wrap:wrap;gap:var(--s-3) var(--s-4);align-items:center}
+.field-inline{display:flex;align-items:center;gap:var(--s-2);flex-wrap:wrap}
+.appbar select{font:inherit;min-height:40px;border-radius:var(--radius-md);border:1px solid var(--color-border-strong);background:var(--color-surface);color:var(--color-text);padding:0 var(--s-3);min-width:140px;max-width:100%}
+.nav{background:var(--color-nav-bg);border-top:1px solid var(--color-nav-active-bg);padding:0 var(--s-4)}
+.nav ul{list-style:none;margin:0;padding:0;display:flex;flex-wrap:wrap;gap:var(--s-1)}
+.nav a{display:inline-flex;align-items:center;min-height:44px;padding:0 var(--s-4);color:var(--color-nav-text);text-decoration:none;border-bottom:3px solid transparent;font-weight:600}
+.nav a:hover{background:var(--color-nav-active-bg);color:var(--color-nav-text)}
+.nav a[aria-current=page]{background:var(--color-nav-active-bg);border-bottom-color:var(--color-focus-ring-on-dark)}
+main{max-width:1180px;margin:0 auto;padding:var(--s-6) var(--s-4) var(--s-8)}
+.page-head{display:flex;flex-wrap:wrap;gap:var(--s-3) var(--s-4);align-items:flex-start;justify-content:space-between;margin-bottom:var(--s-5)}
+.page-head p{color:var(--color-text-secondary);margin-top:var(--s-1)}
+.route{font-family:var(--font-mono);font-size:var(--fs-xs);color:var(--color-text-muted)}
+.grid{display:grid;gap:var(--s-4)}
+.cols-2{grid-template-columns:repeat(2,minmax(0,1fr))}.cols-3{grid-template-columns:repeat(3,minmax(0,1fr))}.cols-4{grid-template-columns:repeat(4,minmax(0,1fr))}
+.stack>*+*{margin-top:var(--s-4)}
+.row{display:flex;flex-wrap:wrap;gap:var(--s-3);align-items:center}
+.card{background:var(--color-surface);border:1px solid var(--color-divider);border-radius:var(--radius-lg);box-shadow:var(--elev-1);padding:var(--s-5);min-width:0}
+.card>h2,.card>h3{margin-bottom:var(--s-3)}
+.card.flush{padding:0;overflow:hidden}
+.success-text{color:var(--color-success-text)}
+.muted{color:var(--color-text-muted)}.secondary{color:var(--color-text-secondary)}
+.small{font-size:var(--fs-sm)}.xs{font-size:var(--fs-xs)}
+.num{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+.money{font-variant-numeric:tabular-nums;white-space:nowrap}
+/* ---- Buttons ---- */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:var(--s-2);min-height:40px;padding:0 var(--s-4);border-radius:var(--radius-md);border:1px solid var(--color-primary);background:var(--color-primary);color:var(--color-on-primary);font:inherit;font-weight:600;cursor:pointer;text-decoration:none}
+.btn:hover{background:var(--color-primary-hover);color:var(--color-on-primary)}
+.btn.secondary{background:var(--color-surface);color:var(--color-primary);border-color:var(--color-primary)}
+.btn.secondary:hover{background:var(--color-surface-sunken);color:var(--color-primary-hover)}
+.btn.danger{background:var(--color-danger-solid);border-color:var(--color-danger-solid)}
+.btn.danger:hover{background:var(--color-danger-text)}
+.btn.sm{min-height:36px;padding:0 var(--s-3);font-size:var(--fs-sm)}
+.btn[disabled],.btn[aria-disabled=true]{background:var(--color-disabled-bg);color:var(--color-disabled-text);border-color:var(--color-border-strong);cursor:not-allowed}
+.spinner{width:14px;height:14px;border-radius:50%;border:2px solid currentColor;border-right-color:transparent;animation:spin .8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+/* ---- Forms ---- */
+.field{display:flex;flex-direction:column;gap:var(--s-1)}
+.field label,.field legend,.label{font-weight:600;font-size:var(--fs-sm)}
+.field .hint{color:var(--color-text-muted);font-size:var(--fs-sm)}
+.input,select.input,textarea.input{font:inherit;min-height:44px;width:100%;border-radius:var(--radius-md);border:1px solid var(--color-border-strong);background:var(--color-surface);color:var(--color-text);padding:var(--s-2) var(--s-3)}
+textarea.input{min-height:96px;resize:vertical}
+.input::placeholder{color:var(--color-placeholder);opacity:1}
+.input[aria-invalid=true]{border:2px solid var(--color-danger-border)}
+.field-error{color:var(--color-danger-text);font-size:var(--fs-sm);font-weight:600;display:flex;gap:var(--s-1)}
+.field-error::before{content:"\26A0";}
+fieldset.field{border:1px solid var(--color-divider);border-radius:var(--radius-md);padding:var(--s-3) var(--s-4);margin:0;min-width:0}
+.radio{display:flex;align-items:center;gap:var(--s-2);min-height:36px}
+.radio input{width:20px;height:20px;accent-color:var(--color-primary);margin:0}
+/* ---- Banners ---- */
+.banner{display:flex;flex-wrap:wrap;gap:var(--s-2) var(--s-3);align-items:center;border:1px solid;border-radius:var(--radius-md);padding:var(--s-3) var(--s-4)}
+.banner .msg{flex:1 1 220px}
+.banner.error{background:var(--color-danger-bg);color:var(--color-danger-text);border-color:var(--color-danger-border)}
+.banner.success{background:var(--color-success-bg);color:var(--color-success-text);border-color:var(--color-success-text)}
+.banner.info{background:var(--color-info-bg);color:var(--color-info-text);border-color:var(--color-info-text)}
+.banner.warn{background:var(--color-warn-bg);color:var(--color-warn-text);border-color:var(--color-warn-text)}
+.banner .btn{background:var(--color-surface)}
+.banner strong{font-weight:700}
+/* ---- Badges (text always present, glyph is decoration) ---- */
+.badge{display:inline-flex;align-items:center;gap:var(--s-1);padding:2px var(--s-2);border-radius:var(--radius-pill);border:1px solid currentColor;font-size:var(--fs-xs);font-weight:700;letter-spacing:.03em;white-space:nowrap;line-height:1.5}
+.badge .g{font-size:var(--fs-xs);line-height:1}
+.badge.neutral{background:var(--color-neutral-bg);color:var(--color-neutral-text)}
+.badge.info{background:var(--color-info-bg);color:var(--color-info-text)}
+.badge.success{background:var(--color-success-bg);color:var(--color-success-text)}
+.badge.warn{background:var(--color-warn-bg);color:var(--color-warn-text)}
+.badge.danger{background:var(--color-danger-bg);color:var(--color-danger-text)}
+/* ---- Tables ---- */
+.table-wrap{width:100%}
+table.data{width:100%;border-collapse:collapse;font-size:var(--fs-sm)}
+table.data caption{text-align:left;font-weight:650;font-size:var(--fs-md);padding:var(--s-4) var(--s-4) var(--s-2)}
+table.data th{text-align:left;font-size:var(--fs-xs);text-transform:uppercase;letter-spacing:.05em;color:var(--color-text-secondary);background:var(--color-surface-sunken);padding:var(--s-2) var(--s-4);border-bottom:1px solid var(--color-divider);white-space:nowrap}
+table.data td{padding:var(--s-3) var(--s-4);border-bottom:1px solid var(--color-divider);vertical-align:middle}
+table.data tr:last-child td{border-bottom:0}
+table.data th.num,table.data td.num{text-align:right}
+table.data tbody tr:hover{background:var(--color-bg)}
+/* ---- Skeleton ---- */
+.skel{display:block;height:14px;border-radius:var(--radius-sm);background:linear-gradient(90deg,var(--color-skeleton) 25%,var(--color-skeleton-hi) 50%,var(--color-skeleton) 75%);background-size:200% 100%;animation:shimmer 1.4s linear infinite}
+@keyframes shimmer{to{background-position:-200% 0}}
+.skel.tall{height:36px}.skel.w60{width:60%}.skel.w40{width:40%}
+/* ---- Tiles, KV, timeline ---- */
+.tile{background:var(--color-surface);border:1px solid var(--color-divider);border-radius:var(--radius-lg);box-shadow:var(--elev-1);padding:var(--s-4);min-width:0}
+.tile .k{font-size:var(--fs-sm);color:var(--color-text-secondary);font-weight:600}
+.tile .v{font-size:var(--fs-xl);font-weight:700;font-variant-numeric:tabular-nums;margin-top:var(--s-1);overflow-wrap:anywhere}
+.tile .s{font-size:var(--fs-sm);color:var(--color-text-muted);margin-top:var(--s-1)}
+dl.kv{display:grid;grid-template-columns:minmax(120px,max-content) 1fr;gap:var(--s-2) var(--s-4);margin:0}
+dl.kv dt{color:var(--color-text-secondary);font-size:var(--fs-sm);font-weight:600}
+dl.kv dd{margin:0;overflow-wrap:anywhere}
+ol.timeline{list-style:none;margin:0;padding:0 0 0 var(--s-5);border-left:2px solid var(--color-border-strong)}
+ol.timeline li{position:relative;padding:0 0 var(--s-4) var(--s-4)}
+ol.timeline li::before{content:"";position:absolute;left:calc(-1 * var(--s-5) - 7px);top:6px;width:12px;height:12px;border-radius:50%;background:var(--color-surface);border:3px solid var(--color-primary)}
+ol.timeline .t{font-weight:650;font-family:var(--font-mono);font-size:var(--fs-sm);overflow-wrap:anywhere}
+ol.timeline .at{color:var(--color-text-muted);font-size:var(--fs-xs)}
+/* ---- Dialog ---- */
+.overlay{position:fixed;inset:0;background:rgba(16,28,50,.62);display:grid;place-items:center;padding:var(--s-4);z-index:50}
+.dialog{background:var(--color-surface);border-radius:var(--radius-lg);box-shadow:var(--elev-3);padding:var(--s-5);width:min(520px,100%);max-height:calc(100vh - 32px);overflow:auto}
+.dialog h2{margin-bottom:var(--s-2)}
+.dialog .actions{display:flex;flex-wrap:wrap;gap:var(--s-3);justify-content:flex-end;margin-top:var(--s-4)}
+/* ---- Responsive ---- */
+@media (max-width:960px){.cols-4{grid-template-columns:repeat(2,minmax(0,1fr))}.cols-3{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media (max-width:640px){
+ main{padding:var(--s-4) var(--s-3) var(--s-7)}
+ .cols-2,.cols-3,.cols-4{grid-template-columns:minmax(0,1fr)}
+ .appbar{padding:var(--s-3)}.nav{padding:0 var(--s-2)}
+ .session{width:100%}.session .field-inline{width:100%}.appbar select{flex:1 1 160px}
+ h1{font-size:var(--fs-xl)}
+ dl.kv{grid-template-columns:1fr;gap:0}dl.kv dd{margin-bottom:var(--s-2)}
+ table.stack thead{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0)}
+ table.stack,table.stack tbody,table.stack tr,table.stack td,table.stack caption{display:block;width:100%}
+ table.stack tr{padding:var(--s-3) var(--s-4);border-bottom:1px solid var(--color-divider)}
+ table.stack td{border:0;padding:var(--s-1) 0;display:flex;justify-content:space-between;gap:var(--s-3);text-align:right}
+ table.stack td::before{content:attr(data-label);font-weight:650;color:var(--color-text-secondary);text-align:left;flex:0 0 40%}
+ table.stack td.num{text-align:right}
+ .btn{min-height:44px}
+}
+@media (prefers-reduced-motion:reduce){.skel,.spinner{animation:none}}
+.grayscale{filter:grayscale(1)}
+main{overflow-wrap:break-word}main pre{max-width:100%}
+</style>
+</head>
+<body>
+<a class="skip" href="#main">Skip to main content</a>
+<div class="devbar" role="region" aria-label="Mockup controls (not part of the product)">
+  <strong>Mockup controls</strong>
+  <label>State <select id="dev-state" aria-label="State"></select></label>
+  <span id="dev-extra"></span>
+  <label><input type="checkbox" id="dev-api" checked> Show API annotations</label>
+</div>
+<header class="appbar on-dark">
+  <div class="brand"><span class="brand-mark" aria-hidden="true">PB</span> PayBridge</div>
+  <div class="session">
+    <div class="field-inline">
+      <label for="role">Role</label>
+      <select id="role"><option value="customer">Customer</option><option value="ops">Ops</option><option value="admin">Admin</option></select>
+    </div>
+    <div class="field-inline" id="customer-wrap" hidden>
+      <label for="customer">Customer</label>
+      <select id="customer" data-api="GET /customers"></select>
+      <span class="api-tag">GET /customers</span>
+    </div>
+  </div>
+</header>
+<nav class="nav on-dark" id="nav" aria-label="Primary"><ul id="nav-list"></ul></nav>
+<main id="main" tabindex="-1"></main>
+<div id="live" class="sr-only" role="status" aria-live="polite"></div>
+
+<script>
+(function () {
+  'use strict';
+  var PB = (window.PB = {});
+  // GET /customers -> {items:[{id,name,role}], total}
+  PB.CUSTOMERS = [
+    { id: 'cus_001', name: 'Aarav Mehta', role: 'customer' },
+    { id: 'cus_002', name: 'Priya Nair', role: 'customer' },
+    { id: 'cus_003', name: 'Rohan Iyer', role: 'customer' },
+    { id: 'cus_004', name: 'Meera Kapoor', role: 'ops' },
+    { id: 'cus_005', name: 'Vikram Rao', role: 'admin' }
+  ];
+  PB.NAV = {
+    customer: [{ label: 'Payments', route: '/payments', href: 'E3-S2.html' }],
+    ops: [
+      { label: 'Reconciliation', route: '/reconciliation', href: 'E6-S3.html' },
+      { label: 'Stuck payments', route: '/stuck-payments', href: 'E4-S5.html#stuck' }
+    ],
+    admin: [
+      { label: 'Dashboard', route: '/dashboard', href: 'E8-S2.html' },
+      { label: 'Settlement', route: '/settlement', href: 'E7-S3.html' },
+      { label: 'Simulation', route: '/simulation', href: 'E4-S5.html#simulation' }
+    ]
+  };
+  var STATE_LABELS = { happy: 'Happy path', empty: 'Empty', loading: 'Loading (skeleton)', error: 'Error' };
+  var LS_KEY = 'paybridge.session';
+  var timers = [];
+  var cfg = null;
+  var $ = function (id) { return document.getElementById(id); };
+  PB.$ = $;
+
+  /* ---------- helpers ---------- */
+  PB.h = function (s) {
+    return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+    });
+  };
+  // Integer paise -> 'Rs 1,00,000.50' (Indian grouping). Integer math and string ops only.
+  PB.fmtRs = function (paise) {
+    if (!Number.isInteger(paise)) { throw new Error('amount_paise must be an integer'); }
+    var neg = paise < 0; var p = Math.abs(paise);
+    var rupees = String(Math.floor(p / 100));
+    var pa = String(p % 100); if (pa.length < 2) { pa = '0' + pa; }
+    var out = rupees;
+    if (rupees.length > 3) {
+      var rest = rupees.slice(0, -3).replace(/\B(?=(\d{2})+(?!\d))/g, ',');
+      out = rest + ',' + rupees.slice(-3);
+    }
+    return (neg ? '-' : '') + 'Rs ' + out + '.' + pa;
+  };
+  // Rupee string -> paise by string parsing (no floating point).
+  PB.parseRupees = function (input) {
+    var s = String(input).trim().replace(/^(rs\.?|₹)\s*/i, '').replace(/[,\s]/g, '');
+    if (s === '') { return { ok: false, empty: true, message: 'Enter an amount in rupees' }; }
+    var neg = false;
+    if (s.charAt(0) === '-') { neg = true; s = s.slice(1); } else if (s.charAt(0) === '+') { s = s.slice(1); }
+    var m = /^(\d+)(?:\.(\d*))?$/.exec(s);
+    if (!m) { return { ok: false, message: 'Enter a valid amount in rupees, for example 1,00,000.50' }; }
+    var frac = m[2] || '';
+    if (frac.length > 2) { return { ok: false, message: 'Use at most two decimal places' }; }
+    if (m[1].length > 13) { return { ok: false, message: 'Amount is too large' }; }
+    var paise = parseInt(m[1], 10) * 100 + parseInt((frac + '00').slice(0, 2), 10);
+    if (neg) { paise = -paise; }
+    if (paise < 100) { return { ok: false, paise: paise, message: 'Amount must be at least Rs 1' }; }
+    return { ok: true, paise: paise };
+  };
+  // Routing bands, BRD 5.3 (upper bounds inclusive)
+  PB.routeRail = function (paise) {
+    if (paise < 100) { return null; }
+    if (paise <= 10000000) { return 'UPI'; }
+    if (paise <= 20000000) { return 'IMPS'; }
+    if (paise <= 50000000) { return 'NEFT'; }
+    return 'RTGS';
+  };
+  PB.fmtTime = function (iso) {
+    return new Intl.DateTimeFormat('en-IN', { timeZone: 'Asia/Kolkata', day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false }).format(new Date(iso)) + ' IST';
+  };
+  PB.fmtClock = function (d) {
+    return new Intl.DateTimeFormat('en-GB', { timeZone: 'Asia/Kolkata', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false }).format(d);
+  };
+  PB.fmtAge = function (sec) {
+    var m = Math.floor(sec / 60), s = sec % 60;
+    return (m >= 60 ? Math.floor(m / 60) + ' h ' + (m % 60) + ' min' : m + ' min ' + s + ' s');
+  };
+  PB.todayIST = function () {
+    return new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kolkata' }).format(new Date());
+  };
+  PB.uuid = function () {
+    if (window.crypto && crypto.randomUUID) { return crypto.randomUUID(); }
+    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
+      var r = (Math.random() * 16) | 0; return (c === 'x' ? r : (r & 3) | 8).toString(16);
+    });
+  };
+  var BADGES = {
+    state: { CREATED: ['neutral', '○'], SUBMITTED: ['info', '◐'], COMPLETED: ['success', '✓'], FAILED: ['danger', '✕'] },
+    refund: { REQUESTED: ['warn', '◐'], APPROVED: ['info', '✓'], EXECUTED: ['success', '✓'], REJECTED: ['danger', '✕'], FAILED: ['danger', '✕'] },
+    recon: { matched: ['success', '✓'], unmatched_internal: ['warn', '!'], unmatched_external: ['warn', '!'], amount_mismatch: ['danger', '≠'] },
+    outcome: { success: ['success', '✓'], transient: ['warn', '↻'], permanent: ['danger', '✕'] },
+    kind: { primary: ['info', '1'], followup: ['neutral', '+'] },
+    mode: { success: ['success', '✓'], permanent_failure: ['danger', '✕'], transient: ['warn', '↻'] }
+  };
+  // Badge: the enum value is always rendered as text; the glyph is decorative.
+  PB.badge = function (type, value) {
+    var d = (BADGES[type] || {})[value] || ['neutral', '•'];
+    return '<span class="badge ' + d[0] + '" data-' + type + '="' + PB.h(value) + '"><span class="g" aria-hidden="true">' + d[1] + '</span>' + PB.h(value) + '</span>';
+  };
+  PB.api = function (label) { return '<span class="api-tag">' + PB.h(label) + '</span>'; };
+  PB.skeletonRows = function (cols, n) {
+    var html = '';
+    for (var i = 0; i < n; i++) {
+      html += '<tr aria-hidden="true">';
+      for (var c = 0; c < cols; c++) { html += '<td><span class="skel ' + (c % 2 ? 'w60' : '') + '"></span></td>'; }
+      html += '</tr>';
+    }
+    return html;
+  };
+  PB.retryBanner = function (message, id, extra) {
+    return '<div class="banner error" role="alert" ' + (extra || '') + '><span class="msg"><strong>Something went wrong.</strong> ' + PB.h(message) + '</span><button type="button" class="btn secondary sm" id="' + (id || 'retry') + '">Retry</button></div>';
+  };
+  PB.announce = function (msg) {
+    var l = $('live'); l.textContent = ''; window.setTimeout(function () { l.textContent = msg; }, 30);
+  };
+  PB.after = function (ms, fn) { var t = window.setTimeout(fn, ms); timers.push(t); return t; };
+  PB.every = function (ms, fn) { var t = window.setInterval(fn, ms); timers.push(t); return t; };
+  PB.clearTimers = function () { timers.forEach(function (t) { window.clearTimeout(t); window.clearInterval(t); }); timers = []; };
+  PB.query = function (k) { return new URLSearchParams(window.location.search).get(k); };
+  PB.errorEnvelope = function (code, message, fields) {
+    var e = { error: { code: code, message: message } }; if (fields) { e.error.fields = fields; } return e;
+  };
+
+  /* ---------- session ---------- */
+  function loadSession() {
+    var s = null;
+    try { s = JSON.parse(window.localStorage.getItem(LS_KEY)); } catch (e) { s = null; }
+    var q = PB.query('role');
+    if (q && PB.NAV[q]) { s = { role: q, customer_id: (s && s.customer_id) || 'cus_001' }; }
+    if (!s || !PB.NAV[s.role]) { s = { role: 'customer', customer_id: 'cus_001' }; }
+    return s;
+  }
+  function saveSession() { try { window.localStorage.setItem(LS_KEY, JSON.stringify(PB.session)); } catch (e) { /* storage blocked */ } }
+  // Headers every API request carries (E1-S4 AC3)
+  PB.headers = function (extra) {
+    var h = { 'X-Role': PB.session.role };
+    if (PB.session.role === 'customer') { h['X-Customer-Id'] = PB.session.customer_id; }
+    if (extra) { for (var k in extra) { h[k] = extra[k]; } }
+    return h;
+  };
+
+  /* ---------- shell ---------- */
+  function renderNav() {
+    var items = PB.NAV[PB.session.role];
+    $('nav-list').innerHTML = items.map(function (it) {
+      var navHref = typeof cfg.nav === 'function' ? cfg.nav() : cfg.nav;
+      var cur = navHref && it.href === navHref ? ' aria-current="page"' : '';
+      return '<li><a href="' + it.href + '" data-route="' + it.route + '"' + cur + '>' + PB.h(it.label) + '</a></li>';
+    }).join('');
+  }
+  function renderCustomerPicker() {
+    var wrap = $('customer-wrap'); var sel = $('customer');
+    var isCust = PB.session.role === 'customer';
+    wrap.hidden = !isCust;
+    if (!isCust) { return; }
+    var list = PB.CUSTOMERS.filter(function (c) { return c.role === 'customer'; });
+    sel.innerHTML = list.map(function (c) {
+      return '<option value="' + c.id + '"' + (c.id === PB.session.customer_id ? ' selected' : '') + '>' + PB.h(c.name) + ' (' + c.id + ')</option>';
+    }).join('');
+    sel.disabled = false;
+    if (cfg.state === 'loading') { sel.innerHTML = '<option>Loading customers…</option>'; sel.disabled = true; }
+  }
+  function allowed() { return cfg.roles.indexOf(PB.session.role) !== -1; }
+  PB.render = function () {
+    PB.clearTimers();
+    var main = $('main');
+    renderNav(); renderCustomerPicker();
+    if (!allowed()) {
+      var names = cfg.roles.map(function (r) { return r.charAt(0).toUpperCase() + r.slice(1); }).join(' or ');
+      var first = PB.NAV[PB.session.role][0];
+      main.innerHTML = '<div class="card stack" role="alert"><h1>Not available for this role</h1>' +
+        '<p>The <code>' + PB.h(cfg.route) + '</code> screen is for ' + PB.h(names) + '. Calling its API as <code>X-Role: ' + PB.session.role + '</code> returns <code>403 FORBIDDEN</code>.</p>' +
+        '<pre class="mono small" style="margin:0;white-space:pre-wrap">' + PB.h(JSON.stringify(PB.errorEnvelope('FORBIDDEN', 'Role ' + PB.session.role + ' cannot access this resource'), null, 2)) + '</pre>' +
+        '<p><a class="btn" href="' + first.href + '">Go to ' + PB.h(first.label) + '</a></p></div>';
+      return;
+    }
+    var ctx = { state: cfg.state, role: PB.session.role, customer_id: PB.session.customer_id, rerender: PB.render };
+    cfg.render(main, ctx);
+  };
+  PB.setState = function (s) { cfg.state = s; $('dev-state').value = s; PB.render(); };
+  PB.state = function () { return cfg.state; };
+  PB.addDev = function (html, onReady) { $('dev-extra').insertAdjacentHTML('beforeend', html); if (onReady) { onReady(); } };
+  PB.init = function (c) {
+    cfg = c; PB.cfg = c;
+    PB.session = loadSession();
+    if (cfg.roles.indexOf(PB.session.role) === -1) { PB.session.role = cfg.defaultRole; }
+    var st = PB.query('state'); cfg.state = STATE_LABELS[st] && cfg.states.indexOf(st) !== -1 ? st : 'happy';
+    document.title = c.id + ' ' + c.title + ' - PayBridge mockup';
+    $('role').value = PB.session.role;
+    $('dev-state').innerHTML = cfg.states.map(function (s) { return '<option value="' + s + '">' + STATE_LABELS[s] + '</option>'; }).join('');
+    $('dev-state').value = cfg.state;
+    $('role').addEventListener('change', function (e) {
+      PB.session.role = e.target.value; saveSession(); PB.announce('Role changed to ' + e.target.value); PB.render();
+    });
+    $('customer').addEventListener('change', function (e) {
+      PB.session.customer_id = e.target.value; saveSession(); PB.render();
+    });
+    $('dev-state').addEventListener('change', function (e) { cfg.state = e.target.value; PB.render(); });
+    $('dev-api').addEventListener('change', function (e) { document.body.classList.toggle('hide-api', !e.target.checked); });
+    saveSession();
+    if (cfg.onInit) { cfg.onInit(); }
+    PB.render();
+    window.addEventListener('hashchange', function () { if (cfg.onHash) { cfg.onHash(); } PB.render(); });
+  };
+})();
+
+</script>
+<script>
+(function () {
+  'use strict';
+  var PB = window.PB;
+  // Payment shape per conventions.md: {id, customer_id, amount_paise, rail, beneficiary, state, reason_code, rail_reference, refund, created_at, updated_at}
+  PB.REASONS = {
+    INSUFFICIENT_FUNDS: 'Insufficient funds', INVALID_BENEFICIARY: 'Invalid beneficiary',
+    BENEFICIARY_ACCOUNT_CLOSED: 'Beneficiary account closed', LIMIT_EXCEEDED: 'Limit exceeded',
+    REJECTED_BY_ADMIN: 'Rejected by admin', RETRIES_EXHAUSTED: 'Rail was unavailable after 5 attempts'
+  };
+  function P(id, cus, amt, rail, ben, state, reason, ref, refund, c, u) {
+    return { id: id, customer_id: cus, amount_paise: amt, rail: rail, beneficiary: ben, state: state, reason_code: reason, rail_reference: ref, refund: refund, created_at: c, updated_at: u };
+  }
+  PB.PAYMENTS = [
+    P('pay_8f3a1c9d2b47', 'cus_001', 10000050, 'IMPS', 'Sharma Textiles Pvt Ltd', 'COMPLETED', null, 'IMPS-261004-000417', null, '2026-10-04T09:30:00Z', '2026-10-04T09:30:04Z'),
+    P('pay_c1d2e3f4a5b6', 'cus_001', 62500000, 'RTGS', 'Kapoor Infra LLP', 'SUBMITTED', null, null, null, '2026-10-04T10:05:12Z', '2026-10-04T10:05:14Z'),
+    P('pay_77aa88bb99cc', 'cus_001', 15000, 'UPI', 'Neha Kulkarni', 'CREATED', null, null, null, '2026-10-04T10:21:55Z', '2026-10-04T10:21:55Z'),
+    P('pay_4b7e20a1c5d9', 'cus_001', 250000, 'UPI', 'Anita Desai', 'COMPLETED', null, 'UPI-261003-884213', { id: 'rfd_2c9f41ab7e03', state: 'REQUESTED', reason_code: null }, '2026-10-03T16:12:40Z', '2026-10-03T16:12:43Z'),
+    P('pay_91ab33cc0de1', 'cus_001', 4500000, 'UPI', 'Deccan Power Distribution', 'FAILED', 'INSUFFICIENT_FUNDS', null, null, '2026-10-02T11:47:03Z', '2026-10-02T11:47:05Z'),
+    P('pay_5d6e7f8091a2', 'cus_001', 12500000, 'IMPS', 'Vikas Enterprises', 'FAILED', 'RETRIES_EXHAUSTED', null, null, '2026-10-02T08:02:10Z', '2026-10-02T08:02:41Z'),
+    P('pay_0a1b2c3d4e5f', 'cus_001', 25000100, 'NEFT', 'Bhatia & Sons Logistics', 'COMPLETED', null, 'NEFT-261001-120934', null, '2026-10-01T05:20:00Z', '2026-10-01T05:20:06Z'),
+    P('pay_a1b2c3d4e5f6', 'cus_002', 7500000, 'UPI', 'Lakshmi Silks', 'COMPLETED', null, 'UPI-261004-551902', null, '2026-10-04T07:44:31Z', '2026-10-04T07:44:33Z'),
+    P('pay_b2c3d4e5f6a7', 'cus_002', 55000000, 'RTGS', 'Nair Realty Holdings', 'COMPLETED', null, 'RTGS-261003-004471', null, '2026-10-03T12:00:18Z', '2026-10-03T12:00:25Z')
+  ];
+  // cus_003 has no payments (natural empty state)
+  PB.EVENT_LABEL = {
+    PAYMENT_CREATED: 'Payment created', PAYMENT_SUBMITTED: 'Submitted to rail', PAYMENT_RETRY_SCHEDULED: 'Retry scheduled',
+    PAYMENT_COMPLETED: 'Payment completed', PAYMENT_FAILED: 'Payment failed', PAYMENT_FLAGGED_STUCK: 'Flagged as stuck',
+    REFUND_REQUESTED: 'Refund requested', REFUND_APPROVED: 'Refund approved', REFUND_REJECTED: 'Refund rejected',
+    REFUND_EXECUTED: 'Refund executed', REFUND_FAILED: 'Refund failed'
+  };
+  // evt shape: {id, type, payload:{}, at}   attempt shape: {attempt_no, outcome, error_code, at}
+  PB.mkEvents = function (pid, list) {
+    return list.map(function (e, i) { return { id: 'evt_' + pid.slice(4, 10) + ('0' + (i + 1)).slice(-2), type: e[0], payload: e[1] || {}, at: e[2] }; });
+  };
+  PB.DETAILS = {
+    pay_8f3a1c9d2b47: {
+      events: PB.mkEvents('pay_8f3a1c9d2b47', [['PAYMENT_CREATED', { rail: 'IMPS', amount_paise: 10000050 }, '2026-10-04T09:30:00Z'], ['PAYMENT_SUBMITTED', { rail: 'IMPS', attempt_no: 1 }, '2026-10-04T09:30:02Z'], ['PAYMENT_COMPLETED', { rail_reference: 'IMPS-261004-000417' }, '2026-10-04T09:30:04Z']]),
+      attempts: [{ attempt_no: 1, outcome: 'success', error_code: null, at: '2026-10-04T09:30:04Z' }]
+    },
+    pay_91ab33cc0de1: {
+      events: PB.mkEvents('pay_91ab33cc0de1', [['PAYMENT_CREATED', { rail: 'UPI', amount_paise: 4500000 }, '2026-10-02T11:47:03Z'], ['PAYMENT_SUBMITTED', { rail: 'UPI', attempt_no: 1 }, '2026-10-02T11:47:04Z'], ['PAYMENT_FAILED', { reason_code: 'INSUFFICIENT_FUNDS' }, '2026-10-02T11:47:05Z']]),
+      attempts: [{ attempt_no: 1, outcome: 'permanent', error_code: 'INSUFFICIENT_FUNDS', at: '2026-10-02T11:47:05Z' }]
+    },
+    pay_5d6e7f8091a2: {
+      events: PB.mkEvents('pay_5d6e7f8091a2', [['PAYMENT_CREATED', { rail: 'IMPS', amount_paise: 12500000 }, '2026-10-02T08:02:10Z'], ['PAYMENT_SUBMITTED', { rail: 'IMPS', attempt_no: 1 }, '2026-10-02T08:02:11Z'], ['PAYMENT_RETRY_SCHEDULED', { attempt_no: 2, delay_seconds: 1 }, '2026-10-02T08:02:12Z'], ['PAYMENT_RETRY_SCHEDULED', { attempt_no: 3, delay_seconds: 2 }, '2026-10-02T08:02:15Z'], ['PAYMENT_RETRY_SCHEDULED', { attempt_no: 4, delay_seconds: 4 }, '2026-10-02T08:02:20Z'], ['PAYMENT_RETRY_SCHEDULED', { attempt_no: 5, delay_seconds: 8 }, '2026-10-02T08:02:29Z'], ['PAYMENT_FAILED', { reason_code: 'RETRIES_EXHAUSTED' }, '2026-10-02T08:02:41Z']]),
+      attempts: [1, 2, 3, 4, 5].map(function (n) { return { attempt_no: n, outcome: 'transient', error_code: 'RAIL_TIMEOUT', at: '2026-10-02T08:02:' + ['11', '14', '19', '28', '40'][n - 1] + 'Z' }; })
+    },
+    pay_4b7e20a1c5d9: {
+      events: PB.mkEvents('pay_4b7e20a1c5d9', [['PAYMENT_CREATED', { rail: 'UPI', amount_paise: 250000 }, '2026-10-03T16:12:40Z'], ['PAYMENT_SUBMITTED', { rail: 'UPI', attempt_no: 1 }, '2026-10-03T16:12:41Z'], ['PAYMENT_COMPLETED', { rail_reference: 'UPI-261003-884213' }, '2026-10-03T16:12:43Z'], ['REFUND_REQUESTED', { refund_id: 'rfd_2c9f41ab7e03' }, '2026-10-04T08:15:00Z']]),
+      attempts: [{ attempt_no: 1, outcome: 'success', error_code: null, at: '2026-10-03T16:12:43Z' }]
+    },
+    pay_c1d2e3f4a5b6: {
+      events: PB.mkEvents('pay_c1d2e3f4a5b6', [['PAYMENT_CREATED', { rail: 'RTGS', amount_paise: 62500000 }, '2026-10-04T10:05:12Z'], ['PAYMENT_SUBMITTED', { rail: 'RTGS', attempt_no: 1 }, '2026-10-04T10:05:14Z']]),
+      attempts: []
+    },
+    pay_77aa88bb99cc: {
+      events: PB.mkEvents('pay_77aa88bb99cc', [['PAYMENT_CREATED', { rail: 'UPI', amount_paise: 15000 }, '2026-10-04T10:21:55Z']]), attempts: []
+    },
+    pay_0a1b2c3d4e5f: {
+      events: PB.mkEvents('pay_0a1b2c3d4e5f', [['PAYMENT_CREATED', { rail: 'NEFT', amount_paise: 25000100 }, '2026-10-01T05:20:00Z'], ['PAYMENT_SUBMITTED', { rail: 'NEFT', attempt_no: 1 }, '2026-10-01T05:20:02Z'], ['PAYMENT_COMPLETED', { rail_reference: 'NEFT-261001-120934' }, '2026-10-01T05:20:06Z']]),
+      attempts: [{ attempt_no: 1, outcome: 'success', error_code: null, at: '2026-10-01T05:20:06Z' }]
+    }
+  };
+})();
+
+</script>
+<script>
+(function () {
+  'use strict';
+  var PB = window.PB, h = PB.h;
+  function reasonText(code) { return code + (PB.REASONS[code] ? ' (' + PB.REASONS[code] + ')' : ''); }
+  // Renders GET /payments/{id} (PaymentDetail). opts.refundSlot: HTML string inserted in the refund row.
+  PB.detailHTML = function (p, d, opts) {
+    opts = opts || {};
+    var rows = '<dt>Payment ID</dt><dd class="mono" data-field="id">' + h(p.id) + '</dd>' +
+      '<dt>Amount</dt><dd class="money" data-field="amount_paise"><strong>' + PB.fmtRs(p.amount_paise) + '</strong> <span class="muted xs">(' + p.amount_paise + ' paise)</span></dd>' +
+      '<dt>Rail</dt><dd data-field="rail">' + h(p.rail) + '</dd>' +
+      '<dt>Beneficiary</dt><dd data-field="beneficiary">' + h(p.beneficiary) + '</dd>' +
+      '<dt>State</dt><dd data-field="state">' + PB.badge('state', p.state) + '</dd>' +
+      '<dt>Reason code</dt><dd data-field="reason_code">' + (p.reason_code ? '<strong>' + h(reasonText(p.reason_code)) + '</strong>' : '<span class="muted">None</span>') + '</dd>' +
+      '<dt>Rail reference</dt><dd class="mono" data-field="rail_reference">' + (p.rail_reference ? h(p.rail_reference) : '<span class="muted">Not assigned yet</span>') + '</dd>' +
+      '<dt>Created</dt><dd data-field="created_at">' + PB.fmtTime(p.created_at) + '</dd>' +
+      '<dt>Updated</dt><dd data-field="updated_at">' + PB.fmtTime(p.updated_at) + '</dd>';
+    if (opts.refundSlot !== undefined) { rows += '<dt>Refund</dt><dd data-field="refund" id="refund-slot">' + opts.refundSlot + '</dd>'; }
+    var failed = p.state === 'FAILED' ? '<div class="banner error" role="note"><span class="msg"><strong>Payment failed.</strong> Reason code: <span class="mono">' + h(p.reason_code) + '</span>. ' + h(PB.REASONS[p.reason_code] || '') + '.</span></div>' : '';
+    var tl = d.events.map(function (e) {
+      var pl = Object.keys(e.payload).map(function (k) { return k + ': ' + (k === 'amount_paise' ? PB.fmtRs(e.payload[k]) : e.payload[k]); }).join(', ');
+      return '<li data-event="' + e.type + '"><div class="t">' + h(e.type) + '</div><div>' + h(PB.EVENT_LABEL[e.type] || '') + (pl ? ' <span class="muted small">(' + h(pl) + ')</span>' : '') + '</div><div class="at"><time datetime="' + e.at + '">' + PB.fmtTime(e.at) + '</time></div></li>';
+    }).join('');
+    var at = d.attempts.length ? d.attempts.map(function (a) {
+      return '<tr><td class="num" data-label="Attempt">' + a.attempt_no + '</td><td data-label="Outcome">' + PB.badge('outcome', a.outcome) + '</td><td data-label="Error code" class="mono">' + (a.error_code ? h(a.error_code) : '—') + '</td><td data-label="At"><time datetime="' + a.at + '">' + PB.fmtTime(a.at) + '</time></td></tr>';
+    }).join('') : '<tr><td colspan="4" class="muted">No attempts yet. The worker has not called the rail.</td></tr>';
+    return '<div class="stack"><div class="card"><h2>Payment ' + PB.api('GET /payments/{id}') + '</h2><div class="stack">' + failed + '<dl class="kv">' + rows + '</dl></div></div>' +
+      '<div class="grid cols-2"><section class="card" aria-labelledby="tl-h"><h2 id="tl-h">Event timeline</h2><ol class="timeline" id="timeline">' + tl + '</ol></section>' +
+      '<section class="card flush"><div class="table-wrap"><table class="data stack"><caption>Attempts</caption><thead><tr><th class="num" scope="col">Attempt</th><th scope="col">Outcome</th><th scope="col">Error code</th><th scope="col">At</th></tr></thead><tbody id="attempts">' + at + '</tbody></table></div></section></div></div>';
+  };
+  PB.detailSkeleton = function () {
+    return '<div class="stack" aria-busy="true" aria-label="Loading payment"><div class="card"><span class="skel tall w40"></span><br><span class="skel"></span><br><span class="skel w60"></span><br><span class="skel"></span><br><span class="skel w40"></span></div>' +
+      '<div class="card" id="skeleton-timeline"><h2>Event timeline</h2><span class="skel"></span><br><span class="skel w60"></span><br><span class="skel"></span><br><span class="skel w40"></span></div></div>';
+  };
+  PB.notFound = function (id) {
+    return '<div class="card stack" role="alert"><h2>Payment not found</h2><p>We could not find a payment with ID <span class="mono">' + h(id) + '</span>. It may belong to another customer or the link may be wrong.</p><p><a class="btn secondary" href="E3-S2.html" data-route="/payments">Back to payments</a></p><p class="muted small">API response: <code>404 NOT_FOUND</code></p></div>';
+  };
+})();
+
+</script>
+<script>
+(function () {
+  'use strict';
+  var PB = window.PB, h = PB.h;
+  var SCEN = {
+    submitted: 'RTGS SUBMITTED, completes on poll #3', retrying: 'IMPS with transient retry, completes on poll #4',
+    created: 'UPI CREATED, submitted then completes', completed: 'IMPS COMPLETED (terminal)', failed: 'UPI FAILED INSUFFICIENT_FUNDS (terminal)', exhausted: 'IMPS FAILED RETRIES_EXHAUSTED (terminal)'
+  };
+  var ignoreQid = false, scen = 'submitted', server = null, pollNo = 0, lastPoll = null, stopped = '';
+  function clone(o) { return JSON.parse(JSON.stringify(o)); }
+  function seed(id) {
+    var base = {
+      submitted: 'pay_c1d2e3f4a5b6', retrying: 'pay_c1d2e3f4a5b6', created: 'pay_77aa88bb99cc', completed: 'pay_8f3a1c9d2b47', failed: 'pay_91ab33cc0de1', exhausted: 'pay_5d6e7f8091a2'
+    }[scen];
+    if (id && PB.DETAILS[id]) { base = id; }
+    var p = clone(PB.PAYMENTS.filter(function (x) { return x.id === base; })[0]);
+    var d = clone(PB.DETAILS[base]);
+    if (scen === 'retrying' && !id) {
+      p.rail = 'IMPS'; p.amount_paise = 15000000;
+      d.events = PB.mkEvents(p.id, [['PAYMENT_CREATED', { rail: 'IMPS', amount_paise: 15000000 }, '2026-10-04T10:05:12Z'], ['PAYMENT_SUBMITTED', { rail: 'IMPS', attempt_no: 1 }, '2026-10-04T10:05:14Z'], ['PAYMENT_RETRY_SCHEDULED', { attempt_no: 2, delay_seconds: 1 }, '2026-10-04T10:05:15Z']]);
+      d.attempts = [{ attempt_no: 1, outcome: 'transient', error_code: 'RAIL_TIMEOUT', at: '2026-10-04T10:05:15Z' }];
+    }
+    return { p: p, d: d };
+  }
+  // Fake server: GET /payments/{id}. Each poll may advance the payment.
+  function poll() {
+    pollNo++; lastPoll = new Date();
+    var now = new Date().toISOString().replace(/\.\d+Z$/, 'Z'); var p = server.p, d = server.d;
+    function ev(t, pl) { d.events.push({ id: 'evt_' + (pollNo + 40), type: t, payload: pl, at: now }); p.updated_at = now; }
+    if (scen === 'created' && pollNo === 1) { p.state = 'SUBMITTED'; ev('PAYMENT_SUBMITTED', { rail: p.rail, attempt_no: 1 }); }
+    else if (scen === 'created' && pollNo === 3 || scen === 'submitted' && pollNo === 3 || scen === 'retrying' && pollNo === 4) {
+      var no = d.attempts.length + 1;
+      d.attempts.push({ attempt_no: no, outcome: 'success', error_code: null, at: now });
+      p.state = 'COMPLETED'; p.rail_reference = p.rail + '-261004-' + String(900 + pollNo); ev('PAYMENT_COMPLETED', { rail_reference: p.rail_reference });
+    } else if (scen === 'retrying' && pollNo === 2) { p.state = 'SUBMITTED'; ev('PAYMENT_SUBMITTED', { rail: p.rail, attempt_no: 2 }); }
+  }
+  function terminal(p) { return p.state === 'COMPLETED' || p.state === 'FAILED'; }
+  function pollNote() {
+    var p = server.p;
+    if (terminal(p)) { return '<strong>Polling stopped.</strong> The payment is ' + p.state + ' (terminal). Polled ' + pollNo + ' time' + (pollNo === 1 ? '' : 's') + '.'; }
+    return '<span class="spinner" aria-hidden="true"></span> <strong>Auto-refreshing every 2 seconds</strong> while the state is CREATED or SUBMITTED. Poll #' + pollNo + (lastPoll ? ' at ' + PB.fmtClock(lastPoll) + ' IST' : ' pending') + '.';
+  }
+  function draw(root) {
+    var p = server.p;
+    var fresh = !PB.$('poll-note');
+    if (fresh) {
+      root.innerHTML = '<div class="page-head"><div><h1>Payment <span class="mono" style="font-size:var(--fs-xl)">' + h(p.id) + '</span></h1><p><a href="E3-S2.html" data-route="/payments">Back to payments</a></p></div><span class="route">/payments/' + h(p.id) + '</span></div>' +
+        '<div class="stack"><div class="banner info" id="poll-note" data-api="GET /payments/{id} every 2000 ms"></div><div id="detail"></div></div>';
+    }
+    PB.$('poll-note').innerHTML = '<span class="msg">' + pollNote() + ' ' + PB.api('GET /payments/{id} every 2 s') + '</span>';
+    PB.$('detail').innerHTML = PB.detailHTML(p, server.d);
+  }
+  function render(root, ctx) {
+    var qid = ignoreQid ? null : PB.query('id');
+    if (ctx.state === 'loading') { root.innerHTML = '<div class="page-head"><div><h1>Payment</h1></div></div>' + PB.detailSkeleton(); return; }
+    if (ctx.state === 'error' || (qid && !PB.DETAILS[qid] && !PB.PAYMENTS.some(function (x) { return x.id === qid; }))) {
+      root.innerHTML = '<div class="page-head"><div><h1>Payment</h1></div><span class="route">/payments/' + h(qid || 'pay_unknown00000') + '</span></div>' + PB.notFound(qid || 'pay_unknown00000'); return;
+    }
+    if (qid && PB.DETAILS[qid]) {
+      var st = PB.PAYMENTS.filter(function (x) { return x.id === qid; })[0];
+      scen = st.state === 'CREATED' ? 'created' : st.state === 'SUBMITTED' ? 'submitted' : st.state === 'COMPLETED' ? 'completed' : st.reason_code === 'RETRIES_EXHAUSTED' ? 'exhausted' : 'failed';
+      PB.$('dev-scen').value = scen;
+    }
+    server = seed(qid); pollNo = 0; lastPoll = null;
+    root.innerHTML = '';
+    draw(root);
+    if (!terminal(server.p)) {
+      PB.every(2000, function () {
+        poll(); draw(root);
+        if (terminal(server.p)) { PB.clearTimers(); PB.announce('Payment ' + server.p.id + ' is now ' + server.p.state); }
+      });
+    }
+  }
+  PB.init({
+    id: 'E3-S3', title: 'Payment detail', route: '/payments/:id', roles: ['customer'], defaultRole: 'customer', nav: 'E3-S2.html', states: ['happy', 'loading', 'error'], render: render,
+    onInit: function () {
+      PB.addDev('<label>Scenario <select id="dev-scen" aria-label="Scenario">' + Object.keys(SCEN).map(function (k) { return '<option value="' + k + '">' + SCEN[k] + '</option>'; }).join('') + '</select></label>');
+      PB.$('dev-scen').addEventListener('change', function (e) { scen = e.target.value; ignoreQid = true; PB.render(); });
+    }
+  });
+})();
+
+</script>
+</body>
+</html>

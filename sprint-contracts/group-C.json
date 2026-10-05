@@ -1,0 +1,125 @@
+{
+  "group": "C",
+  "stories": [
+    "E1-S3",
+    "E2-S1"
+  ],
+  "features": [
+    "F011",
+    "F012",
+    "F013",
+    "F014",
+    "F015",
+    "F020",
+    "F021",
+    "F022",
+    "F023"
+  ],
+  "contract": {
+    "api_checks": [
+      {
+        "id": "C-API-01",
+        "method": "GET",
+        "path": "/health",
+        "headers": {},
+        "expected_status": 200,
+        "expected_body": {
+          "status": "ok",
+          "database": "ok"
+        },
+        "description": "F011 (E1-S3 AC1): no X-Role or X-Customer-Id sent. Body status is 'ok' and a database check field is present with value 'ok' (api-contracts.md Health shape). Content-Type is application/json."
+      },
+      {
+        "id": "C-API-02",
+        "method": "GET",
+        "path": "/customers",
+        "headers": {},
+        "expected_status": 200,
+        "description": "F015 (AC5): public, no role headers. Body is {items:[...], total:5}. Items contain exactly ids cus_001, cus_002, cus_003, ops_001, adm_001, each with non-empty id, name and role, roles customer x3, ops x1, admin x1. No created_at or other internal field is required. Evaluator asserts these per-item fields, since expected_body is a partial match.",
+        "expected_body": {
+          "total": 5
+        }
+      },
+      {
+        "id": "C-API-03",
+        "method": "GET",
+        "path": "/customers",
+        "headers": {
+          "Origin": "http://localhost:3000"
+        },
+        "expected_status": 200,
+        "description": "F015 (AC5): GET /customers with Origin http://localhost:3000, server started with default env (no PAYBRIDGE_CORS_ORIGIN): response carries Access-Control-Allow-Origin: http://localhost:3000. Default must be http://localhost:3000 per api-contracts.md CORS row; the current settings.py default of http://localhost:5173 must be fixed."
+      },
+      {
+        "id": "C-API-04",
+        "method": "GET",
+        "path": "/health",
+        "headers": {
+          "X-Role": "bogus"
+        },
+        "expected_status": 200,
+        "expected_body": {
+          "status": "ok",
+          "database": "ok"
+        },
+        "description": "F011/F012 (AC1, AC2): public paths ignore role headers. /health with an invalid X-Role still returns 200, so role resolution must not apply to /health."
+      },
+      {
+        "id": "C-API-05",
+        "method": "GET",
+        "path": "/customers",
+        "headers": {
+          "X-Role": "bogus"
+        },
+        "expected_status": 200,
+        "description": "F015 (AC5): GET /customers is public per api-contracts.md ('need none'), so an invalid X-Role does not produce 401."
+      }
+    ],
+    "playwright_checks": [],
+    "design_checks": {},
+    "architecture_checks": {
+      "unit_tests": {
+        "required": true,
+        "description": "(a) `cd backend && uv run pytest -x -q` exits 0 including tests/api/test_health_auth.py (F011-F015), tests/service/test_payment_service.py (F020-F023) and all earlier groups' tests, with coverage at or above 80 if configured. (b) The evaluator's own probes on a fresh file database under a temp directory with the clock and ids injected, not relying on the generator's tests alone. Failure_layer is service for these. E2-S1 has no HTTP surface in this group (POST /payments is E2-S3), so ACs are probed by calling paybridge.service.payment_service directly, using the project's own container/factory or constructing the service from the repositories on a migrated and seeded DB. F020 (AC1): creating a payment of 150000 paise for cus_001 with beneficiary 'Ravi Kumar' and an idempotency key returns/persists a payment with state CREATED, rail UPI and amount_paise 150000 (type int). Raw SQL reads show exactly 1 payments row, exactly 1 outbox_messages row with status PENDING and payment_id equal to the payment id (attempts 0), exactly 1 payment_events row with type PAYMENT_CREATED and the same payment_id, and a payload that does not contain the beneficiary string (data-models.md section 5). Payment id matches ^pay_[0-9a-f]{12}$ and event id matches ^evt_[0-9a-f]{12}$. created_at and updated_at are ISO 8601 UTC ending in Z. request_hash is a 64-char hex sha256 (idempotency.py hash only; decide/TTL/release belong to E2-S2 and are not checked here). F021 (AC2): with the outbox repository's insert patched or wrapped to raise (monkeypatch on the instance used by the service), the create call raises, and afterwards payments count is 0, payment_events count is 0 and outbox_messages count is 0. The write is done through one Database.write() transaction (BEGIN IMMEDIATE) shared by all three inserts, confirmed by reading payment_service.py: the three repository calls take the same connection/transaction and there is no commit between them. A subsequent successful create on the same DB still works, so the connection is not left in a broken transaction. F022 (AC3): amounts 10000001 and 20000000 store rail IMPS, 50000001 stores RTGS, and also 10000000 stores UPI and 20000001 and 50000000 store NEFT, read back from the payments table. The rail is obtained from paybridge.types.routing.route_rail and the service does not re-implement band thresholds (grep payment_service.py for 10000000, 20000000 and 50000000 returns no matches). F023 (AC4): amount 99 raises the typed domain error with code AMOUNT_BELOW_MINIMUM (also 0 and -1, while exactly 100 succeeds with rail UPI per the api-contracts.md routing minimum); an empty beneficiary '' raises a validation error; a 141-character beneficiary raises a validation error while exactly 140 characters succeeds. After each rejected call, count(payments)=0, count(outbox_messages)=0 and count(payment_events)=0. The error is a typed domain error from paybridge.types.errors (not a raw sqlite3.IntegrityError from the CHECK constraints), so validation happens before any insert. E1-S3 service logic: paybridge.service.identity_service resolves (role='ops', None) and (role='admin', None) to a caller with that role, ('customer','cus_001') to a customer caller with id cus_001, and raises the typed unauthenticated error (UNAUTHENTICATED, maps to 401) for None role, role 'superuser', role 'customer' with None id, and role 'customer' with 'cus_999'. Role guard (E1-S3 AC2-AC4) decision: no live protected endpoint exists in this group (/health and GET /customers are public; /admin/simulation belongs to E4-S1 and is not registered), so 401/403 rules are verified in-process only and the live 404 for an unregistered /admin/simulation is NOT asserted and no placeholder route is required. tests/api/test_health_auth.py must exercise the real role-resolution and guard dependencies through the in-process app using a test-only route registered at /admin/simulation (admin-only, per the role matrix) and a test-only route allowing customer: (i) no X-Role -> 401 UNAUTHENTICATED envelope {error:{code,message}} without a fields key; (ii) X-Role superuser -> 401; (iii) X-Role customer without X-Customer-Id -> 401; (iv) customer with cus_999 -> 401; (v) customer with cus_001 on the admin-only route -> 403 FORBIDDEN (AC4 literal); (vi) ops and admin without X-Customer-Id resolve; ops on admin-only -> 403, admin -> 200; (vii) valid pair customer/cus_001 on the customer-allowed route -> 200 with the caller resolved to cus_001/customer (F013 success path); (viii) 401 takes precedence over 403; (ix) /health and GET /customers with X-Role bogus still return 200. Evaluator runs these tests and reads the test names to confirm each case exists, then also probes the guard dependency in-process with its own tiny app."
+      },
+      "layering": {
+        "required": true,
+        "description": "One-way imports per architecture.md and folder-structure.md (Types -> Config -> Repository -> Service -> API), checked by grepping import statements. backend/src/paybridge/service/** never imports from paybridge.api and never imports fastapi or starlette. backend/src/paybridge/service/payment_service.py and idempotency.py and identity_service.py import only from types, config, repository (via ports or repos), lib and stdlib. backend/src/paybridge/repository/** never imports from paybridge.service or paybridge.api (the E2-S1 modifications to payments_repo.py, outbox_repo.py and events_repo.py contain only SQL and DuplicateKeyError translation, no routing or validation decisions). backend/src/paybridge/api/** is the only place that imports fastapi; api/routes never touch repositories or sqlite3 directly, they go through api/container.py and services (container.py is the composition root and may import repository and service). Error-to-envelope mapping lives only in api/errors.py. sqlite3.connect appears only in repository/db.py and migrate.py. events_repo.py still exposes only append and list_for_payment after modification. SQL values are bound parameters (no f-string, % or .format building SQL). All internal imports are absolute (from paybridge....)."
+      },
+      "typing": {
+        "required": true,
+        "description": "`cd backend && uv run mypy src/` exits 0 with zero errors and `cd backend && uv run ruff check .` exits 0. No `Any` and no `# type: ignore` in files added or modified by E1-S3 and E2-S1 (api/*, service/identity_service.py, service/payment_service.py, service/idempotency.py, the three modified repositories). No *_paise field, parameter or variable is annotated float (grep backend/src). Public service functions and FastAPI route handlers are fully annotated, with Pydantic response models on /health and /customers. Size limits from CLAUDE.md: files under 300 lines and functions under 50 lines in all added or modified files."
+      },
+      "folder_structure": {
+        "required": true,
+        "description": "Every E1-S3 and E2-S1 file in specs/design/component-map.md exists at the path given in folder-structure.md, including the backend/src/main.py shim, which exposes `app = create_app()` so that `cd backend && uv run uvicorn src.main:app --port 8000` (the project-manifest.json local start command, also used by init.sh) boots the API. The evaluator starts the backend that way with a throwaway PAYBRIDGE_DB_PATH under a temp directory, waits on GET /health with the manifest retry policy (5 retries, 2 s backoff), runs the api_checks, then stops it. No *.db, *.db-wal or *.db-shm file is left under backend/ or the repo root, and no data/ directory contents are tracked. backend/src/paybridge/api/routes/ and api/schemas/ are packages importable with absolute imports.",
+        "files_must_exist": [
+          "backend/src/main.py",
+          "backend/src/paybridge/api/app.py",
+          "backend/src/paybridge/api/container.py",
+          "backend/src/paybridge/api/deps.py",
+          "backend/src/paybridge/api/errors.py",
+          "backend/src/paybridge/api/schemas/common.py",
+          "backend/src/paybridge/api/routes/health.py",
+          "backend/src/paybridge/api/routes/customers.py",
+          "backend/src/paybridge/service/identity_service.py",
+          "backend/src/paybridge/service/payment_service.py",
+          "backend/src/paybridge/service/idempotency.py",
+          "backend/src/paybridge/repository/payments_repo.py",
+          "backend/src/paybridge/repository/outbox_repo.py",
+          "backend/src/paybridge/repository/events_repo.py",
+          "backend/tests/api/test_health_auth.py",
+          "backend/tests/service/test_payment_service.py"
+        ]
+      },
+      "env_vars": {
+        "required": true,
+        "description": "The app reads configuration only through paybridge.config.settings.Settings (no os.environ or os.getenv in api/, service/ or repository/; grep returns no matches outside config/settings.py). Env var names must match specs/design/deployment.md exactly: PAYBRIDGE_DATA_DIR (default ./data), PAYBRIDGE_DB_PATH (default <data>/paybridge.db), PAYBRIDGE_RAIL_LEDGER_PATH (<data>/rail_ledger.jsonl), PAYBRIDGE_SETTLEMENT_DIR (<data>/settlement, singular), PAYBRIDGE_CORS_ORIGIN (http://localhost:3000), PAYBRIDGE_SQLITE_BUSY_TIMEOUT_MS (10000), PAYBRIDGE_WORKER_POLL_INTERVAL (0.5). The current settings.py names CORS_ORIGIN, RAIL_LEDGER_PATH, SETTLEMENT_DIR, PAYBRIDGE_BUSY_TIMEOUT_MS and OUTBOX_POLL_INTERVAL_SECONDS, default cors_origin http://localhost:5173 and settlements dir do not conform and must be corrected; the evaluator checks by setting each PAYBRIDGE_* variable in a Settings.from_env probe and asserting the value is honoured, and that the old unprefixed names are not read. Defaults with no env set: cors_origin == http://localhost:3000, and derived paths follow PAYBRIDGE_DATA_DIR when only it is set. Live CORS: with the server started on default env (only PAYBRIDGE_DB_PATH set), the evaluator runs curl -X OPTIONS http://localhost:8000/customers with Origin http://localhost:3000, Access-Control-Request-Method GET and Access-Control-Request-Headers X-Role,X-Customer-Id,Idempotency-Key,Content-Type (OPTIONS is not in the contract schema method enum, so this is run here rather than as an api_check): status 200, Access-Control-Allow-Origin http://localhost:3000, Access-Control-Allow-Headers listing X-Role, X-Customer-Id and Idempotency-Key (case-insensitive). A request with Origin http://localhost:5173 must not receive an Allow-Origin header. No secret or absolute path is hardcoded."
+      },
+      "migrations": {
+        "required": true,
+        "description": "Schema is created by the E1-S2 initialize_database and the demo users by seed (idempotent). This group introduces no new tables. The app startup (create_app lifespan or container) runs initialize_database and the seed against Settings.db_path, so a fresh empty DB path yields working /health (database 'ok') and /customers (5 seeded users) with no manual step. Restarting the server on the same DB file leaves the customers row count at 5 and does not error. If E2-S1 modifies repository SQL, it uses only the existing schema (no DDL change outside repository/schema.py, and no ALTER)."
+      }
+    }
+  }
+}

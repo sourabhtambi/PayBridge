@@ -1,0 +1,36 @@
+[
+  {
+    "failure": {
+      "layer": "architecture",
+      "gate": "evaluator",
+      "check": "architecture_checks.folder_structure: init.sh must still reach 'Environment ready'",
+      "actual": {
+        "exit_code": 1,
+        "output": "init.sh: line 20: ../.run/backend.pid: No such file or directory"
+      },
+      "stack_trace": "init.sh line 19-20: (cd backend && uv run uvicorn ... > ../.run/backend.log 2>&1 & echo $! > ../.run/backend.pid). The '&' backgrounds the whole 'cd backend && uv run' list, so 'echo $! > ../.run/backend.pid' runs in the subshell at repo root where ../.run resolves outside the repo; under set -e the script exits 1 before the frontend starts and before the health checks. The backgrounded uvicorn is orphaned (init.sh never prints 'Environment ready'). uv sync and npm ci themselves succeeded.",
+      "error_type": "unknown",
+      "files_likely_involved": [
+        "init.sh:19",
+        "init.sh:20"
+      ],
+      "prior_attempts": []
+    }
+  },
+  {
+    "failure": {
+      "layer": "architecture",
+      "gate": "evaluator",
+      "check": "architecture_checks.folder_structure: index.html with the root element and skip link",
+      "actual": {
+        "index_html": "contains <div id=\"root\"> but no skip link; the skip link ('Skip to main content', href=#main) is rendered by React in AppShell and is the first Tab stop at runtime"
+      },
+      "stack_trace": "grep -n skip frontend/index.html returned nothing",
+      "error_type": "assertion_error",
+      "files_likely_involved": [
+        "frontend/index.html"
+      ],
+      "prior_attempts": []
+    }
+  }
+]

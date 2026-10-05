@@ -1,0 +1,59 @@
+stages:
+  - test
+  - review
+
+variables:
+  PYTHON_VERSION: "3.12"
+  NODE_VERSION: "20"
+
+backend-test:
+  stage: test
+  image: python:3.12-slim
+  before_script:
+    - pip install uv
+    - cd backend
+    - uv sync
+  script:
+    - uv run pytest --cov=paybridge --cov-report=xml --cov-fail-under=80 -q
+    - uv run ruff check src/
+    - uv run mypy src/
+  coverage: '/TOTAL.*\s+(\d+%)$/'
+  artifacts:
+    reports:
+      coverage_report:
+        coverage_format: cobertura
+        path: backend/coverage.xml
+
+frontend-test:
+  stage: test
+  image: node:20-slim
+  before_script:
+    - cd frontend
+    - npm ci
+  script:
+    - npm test -- --run
+    - npm run lint
+    - npm run typecheck
+
+claude-review:
+  stage: review
+  image: node:20
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+  variables:
+    GIT_DEPTH: "0"
+  before_script:
+    - npm install -g @anthropic-ai/claude-code
+  script:
+    - test -n "$ANTHROPIC_API_KEY" || { echo "Set ANTHROPIC_API_KEY as a masked CI/CD variable"; exit 1; }
+    - git fetch origin "$CI_MERGE_REQUEST_TARGET_BRANCH_NAME"
+    - git diff --name-only "origin/$CI_MERGE_REQUEST_TARGET_BRANCH_NAME...HEAD" | tee changed_files.txt
+    - git diff "origin/$CI_MERGE_REQUEST_TARGET_BRANCH_NAME...HEAD" | head -c 200000 > changes.diff
+    - claude --print "Review this PR for code quality, security issues and spec compliance" < changes.diff > claude-review.md
+    - cat claude-review.md
+  artifacts:
+    when: always
+    paths:
+      - claude-review.md
+      - changed_files.txt
+  allow_failure: true

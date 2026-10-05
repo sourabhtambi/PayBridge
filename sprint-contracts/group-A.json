@@ -1,0 +1,56 @@
+{
+  "group": "A",
+  "stories": ["E1-S1"],
+  "features": ["F001", "F002", "F003", "F004", "F005"],
+  "contract": {
+    "api_checks": [],
+    "playwright_checks": [],
+    "design_checks": {},
+    "architecture_checks": {
+      "unit_tests": {
+        "required": true,
+        "description": "Types-layer story with no HTTP or UI surface, so ACs 1-4 are checked by running code directly (failure_layer unit_test). The evaluator runs (a) `cd backend && uv run pytest -q --no-cov tests/unit/test_routing.py tests/unit/test_money.py tests/unit/test_enums_state_machine.py tests/unit/test_timeutil.py`, which must exit 0, and (b) its own probes via `uv run python -c` against the public functions. It does not rely on the generator's tests alone. F001 (AC1): paybridge.types.routing.route_rail returns Rail.UPI for 100 and 10000000, Rail.IMPS for 10000001 and 20000000, Rail.NEFT for 20000001 and 50000000, Rail.RTGS for 50000001 and 1000000000000 (all 8 boundary amounts, inclusive upper bounds per BRD 5.3). F002 (AC2): the amount validator in paybridge.types.money (validate_amount per the F002 steps; minimum is MIN_AMOUNT_PAISE == 100) raises the typed domain error from paybridge.types.errors with code == 'AMOUNT_BELOW_MINIMUM' for each of 0, -1, 1 and 99, and accepts 100 (returns 100, no exception). F003 (AC3): paybridge.types.money.rupees_to_paise('1,00,000.50') returns 10000050 and type(result) is int. rupees_to_paise('1.005') and rupees_to_paise('abc') each raise a validation error. The function body uses decimal.Decimal, and no float() call or float literal appears in money.py (checked with grep). F004 (AC4): set(member.value) equals exactly PaymentState {CREATED, SUBMITTED, COMPLETED, FAILED}; RefundState {REQUESTED, APPROVED, EXECUTED, REJECTED, FAILED}; ReconStatus {matched, unmatched_internal, unmatched_external, amount_mismatch}; Role {customer, ops, admin} (BRD 8.2, 8.5, data model; member values match the stored strings). The transition table in paybridge.types.state_machine rejects COMPLETED->SUBMITTED and FAILED->COMPLETED: is_valid_transition returns False, or assert_transition raises. It accepts CREATED->SUBMITTED, SUBMITTED->COMPLETED and SUBMITTED->FAILED (data-models.md section 2)."
+      },
+      "layering": {
+        "required": true,
+        "description": "One-way imports per folder-structure.md. Checked by grepping import statements: backend/src/paybridge/types/** imports nothing from paybridge.config, paybridge.repository, paybridge.service, paybridge.api or paybridge.lib. backend/src/paybridge/config/** imports only from paybridge.types (and stdlib). backend/src/paybridge/lib/** imports nothing from any layer package (types, config, repository, service, api). lib/clock.py satisfies the types.ports.Clock Protocol structurally without importing it. All internal imports are absolute (from paybridge....)."
+      },
+      "typing": {
+        "required": true,
+        "description": "F005 (AC5): `cd backend && uv run mypy src/` exits 0 and reports zero errors. `grep -rnE '_paise[A-Za-z_]*\\s*:\\s*(Optional\\[)?float|_paise[A-Za-z_]*\\s*:\\s*float\\s*\\|' backend/src` returns no matches, so no field, parameter or variable named *_paise is annotated float. Every *_paise field in types/models.py is annotated int (or int | None)."
+      },
+      "folder_structure": {
+        "required": true,
+        "description": "Every E1-S1 file in specs/design/component-map.md exists at the path given in specs/design/folder-structure.md. The list was cross-checked against both docs and the paths match. backend/src/paybridge/__init__.py is listed in folder-structure.md and no other story owns it. It is required so absolute imports such as `from paybridge.types.enums import Rail` resolve.",
+        "files_must_exist": [
+          "backend/pyproject.toml",
+          "backend/src/paybridge/__init__.py",
+          "backend/src/paybridge/types/enums.py",
+          "backend/src/paybridge/types/errors.py",
+          "backend/src/paybridge/types/models.py",
+          "backend/src/paybridge/types/money.py",
+          "backend/src/paybridge/types/routing.py",
+          "backend/src/paybridge/types/state_machine.py",
+          "backend/src/paybridge/types/ports.py",
+          "backend/src/paybridge/config/constants.py",
+          "backend/src/paybridge/config/rails.py",
+          "backend/src/paybridge/lib/timeutil.py",
+          "backend/src/paybridge/lib/ids.py",
+          "backend/src/paybridge/lib/clock.py",
+          "backend/tests/unit/test_routing.py",
+          "backend/tests/unit/test_money.py",
+          "backend/tests/unit/test_enums_state_machine.py",
+          "backend/tests/unit/test_timeutil.py"
+        ]
+      },
+      "env_vars": {
+        "required": false,
+        "description": "No environment variables are introduced in this group. config/settings.py belongs to E1-S2."
+      },
+      "migrations": {
+        "required": false,
+        "description": "No database migrations in this group. The Repository layer starts in E1-S2."
+      }
+    }
+  }
+}

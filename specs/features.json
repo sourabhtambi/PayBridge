@@ -1,0 +1,2174 @@
+[
+  {
+    "id": "F001",
+    "category": "functional",
+    "story": "E1-S1",
+    "group": "A",
+    "description": "route_rail returns UPI for 100 and 10,000,000, IMPS for 10,000,001 and 20,000,000, NEFT for 20,000,001 and 50,000,000, RTGS for 50,000,001 and 1,000,000,000,000 paise",
+    "steps": [
+      "Call route_rail with each of the 8 boundary amounts",
+      "Assert the returned rail equals the BRD 5.3 table for every amount"
+    ],
+    "passes": true,
+    "last_evaluated": "2026-10-05",
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F002",
+    "category": "functional",
+    "story": "E1-S1",
+    "group": "A",
+    "description": "Amounts 0, -1, 1 and 99 paise raise a validation error with code AMOUNT_BELOW_MINIMUM, and 100 is accepted",
+    "steps": [
+      "Call validate_amount with 0, -1, 1, 99",
+      "Assert each raises AMOUNT_BELOW_MINIMUM",
+      "Assert validate_amount(100) returns 100"
+    ],
+    "passes": true,
+    "last_evaluated": "2026-10-05",
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F003",
+    "category": "functional",
+    "story": "E1-S1",
+    "group": "A",
+    "description": "The rupee-to-paise helper converts the string '1,00,000.50' to the integer 10000050 using Decimal and rejects '1.005' (three decimals) and non-numeric input",
+    "steps": [
+      "Convert '1,00,000.50' and assert result is int 10000050",
+      "Convert '1.005' and 'abc' and assert a validation error is raised"
+    ],
+    "passes": true,
+    "last_evaluated": "2026-10-05",
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F004",
+    "category": "functional",
+    "story": "E1-S1",
+    "group": "A",
+    "description": "PaymentState, RefundState, ReconStatus and Role enums contain exactly the values in the BRD, and the transition table rejects COMPLETED to SUBMITTED and FAILED to COMPLETED",
+    "steps": [
+      "Assert enum member sets equal the BRD lists",
+      "Assert is_valid_transition(COMPLETED, SUBMITTED) is False",
+      "Assert is_valid_transition(CREATED, SUBMITTED) is True"
+    ],
+    "passes": true,
+    "last_evaluated": "2026-10-05",
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F005",
+    "category": "functional",
+    "story": "E1-S1",
+    "group": "A",
+    "description": "mypy src/ passes with zero errors and no field named *_paise is annotated float",
+    "steps": [
+      "Run uv run mypy src/ and assert exit code 0",
+      "Grep the Types layer for float-annotated *_paise fields and assert none"
+    ],
+    "passes": true,
+    "last_evaluated": "2026-10-05",
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F006",
+    "category": "functional",
+    "story": "E1-S2",
+    "group": "B",
+    "description": "Initialising a fresh database creates tables customers, payments, payment_attempts, outbox_messages, payment_events, refunds, rail_statement_entries, reconciliation_results and settlement_files, and PRAGMA journal_mode returns 'wal'",
+    "steps": [
+      "Run schema init on an empty file database",
+      "Query sqlite_master and assert the nine tables exist",
+      "Run PRAGMA journal_mode and assert 'wal'"
+    ],
+    "passes": true,
+    "last_evaluated": "2026-10-05",
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F007",
+    "category": "functional",
+    "story": "E1-S2",
+    "group": "B",
+    "description": "Inserting two payments with the same (customer_id, idempotency_key) raises DuplicateKeyError, and inserting a second refund for one payment_id raises DuplicateKeyError",
+    "steps": [
+      "Insert a payment, insert another with the same customer and key",
+      "Assert DuplicateKeyError",
+      "Insert two refunds for one payment and assert DuplicateKeyError"
+    ],
+    "passes": true,
+    "last_evaluated": "2026-10-05",
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F008",
+    "category": "functional",
+    "story": "E1-S2",
+    "group": "B",
+    "description": "payment_events has no update or delete repository methods, and a raw UPDATE or DELETE on payment_events fails with a trigger error",
+    "steps": [
+      "Inspect the repository class and assert no update/delete method",
+      "Execute a raw UPDATE on payment_events and assert sqlite3 error",
+      "Execute a raw DELETE and assert the same"
+    ],
+    "passes": true,
+    "last_evaluated": "2026-10-05",
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F009",
+    "category": "functional",
+    "story": "E1-S2",
+    "group": "B",
+    "description": "amount_paise columns are INTEGER with CHECK (amount_paise >= 100), and inserting 99 fails",
+    "steps": [
+      "Insert a payment row with amount_paise 99",
+      "Assert a constraint error",
+      "Insert 100 and assert success"
+    ],
+    "passes": true,
+    "last_evaluated": "2026-10-05",
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F010",
+    "category": "functional",
+    "story": "E1-S2",
+    "group": "B",
+    "description": "Seeding creates 3 customers, 1 ops user and 1 admin user and is idempotent when run twice",
+    "steps": [
+      "Run seed twice",
+      "Assert customers table has 5 rows with roles customer x3, ops x1, admin x1"
+    ],
+    "passes": true,
+    "last_evaluated": "2026-10-05",
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F011",
+    "category": "integration",
+    "story": "E1-S3",
+    "group": "C",
+    "description": "GET /health returns 200 with body {\"status\":\"ok\"} and a database check field, without requiring role headers",
+    "steps": [
+      "GET /health with no headers",
+      "Assert 200 and status ok",
+      "Assert the response includes db: ok"
+    ],
+    "passes": true,
+    "last_evaluated": "2026-10-05T00:00:00Z",
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F012",
+    "category": "security",
+    "story": "E1-S3",
+    "group": "C",
+    "description": "A protected endpoint called without X-Role returns 401, and with X-Role set to an unknown value returns 401",
+    "steps": [
+      "Call GET /payments with no X-Role",
+      "Assert 401",
+      "Call with X-Role: hacker and assert 401"
+    ],
+    "passes": true,
+    "last_evaluated": "2026-10-05T00:00:00Z",
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F013",
+    "category": "security",
+    "story": "E1-S3",
+    "group": "C",
+    "description": "X-Role: customer without X-Customer-Id, or with an unknown customer id, returns 401; a valid pair resolves the customer",
+    "steps": [
+      "Call GET /payments with X-Role customer and no id",
+      "Assert 401",
+      "Call with unknown id and assert 401",
+      "Call with a seeded id and assert 200"
+    ],
+    "passes": true,
+    "last_evaluated": "2026-10-05T00:00:00Z",
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F014",
+    "category": "security",
+    "story": "E1-S3",
+    "group": "C",
+    "description": "Role guards return 403 when a role calls an endpoint outside its permissions (customer calling /admin/simulation returns 403)",
+    "steps": [
+      "Call a guarded admin endpoint as customer",
+      "Assert 403 with error code FORBIDDEN"
+    ],
+    "passes": true,
+    "last_evaluated": "2026-10-05T00:00:00Z",
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F015",
+    "category": "integration",
+    "story": "E1-S3",
+    "group": "C",
+    "description": "GET /customers returns the seeded customers with id, name and role for all three roles, and CORS allows origin http://localhost:3000 with headers X-Role, X-Customer-Id and Idempotency-Key",
+    "steps": [
+      "GET /customers as customer and assert 5 or fewer items with id, name, role",
+      "Send an OPTIONS preflight from origin localhost:3000",
+      "Assert allow-headers include the three custom headers"
+    ],
+    "passes": true,
+    "last_evaluated": "2026-10-05T00:00:00Z",
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F016",
+    "category": "ui",
+    "story": "E1-S4",
+    "group": "D",
+    "description": "The header contains a select labelled 'Role' with options Customer, Ops and Admin, operable by keyboard",
+    "steps": [
+      "Render the shell",
+      "Query getByLabelText('Role')",
+      "Tab to it, use arrow keys, assert the selection changes"
+    ],
+    "passes": true,
+    "last_evaluated": "2026-10-05",
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F017",
+    "category": "ui",
+    "story": "E1-S4",
+    "group": "D",
+    "description": "The customer picker is visible only when the role is Customer and is populated from GET /customers",
+    "steps": [
+      "Select Customer and assert picker visible with customers from the API",
+      "Select Ops and assert picker is absent"
+    ],
+    "passes": true,
+    "last_evaluated": "2026-10-05",
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F018",
+    "category": "ui",
+    "story": "E1-S4",
+    "group": "D",
+    "description": "Every API request carries X-Role and X-Customer-Id from the current selection, and the selection persists across a page reload via localStorage",
+    "steps": [
+      "Select Customer and a customer",
+      "Intercept a request and assert both headers",
+      "Reload and assert the selection is restored"
+    ],
+    "passes": true,
+    "last_evaluated": "2026-10-05",
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F019",
+    "category": "ui",
+    "story": "E1-S4",
+    "group": "D",
+    "description": "Navigation shows Payments for Customer, Reconciliation and Stuck payments for Ops, and Dashboard, Settlement and Simulation for Admin, and no other items",
+    "steps": [
+      "Switch to each role",
+      "Assert the nav link set equals the expected list for that role"
+    ],
+    "passes": true,
+    "last_evaluated": "2026-10-05",
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F020",
+    "category": "functional",
+    "story": "E2-S1",
+    "group": "C",
+    "description": "Creating a payment of 150000 paise stores a CREATED payment with rail UPI, one pending outbox message and one PAYMENT_CREATED event, all in one transaction",
+    "steps": [
+      "Call create_payment with 150000 paise",
+      "Assert payment state CREATED and rail UPI",
+      "Assert 1 pending outbox row and 1 PAYMENT_CREATED event"
+    ],
+    "passes": true,
+    "last_evaluated": "2026-10-05T00:00:00Z",
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F021",
+    "category": "functional",
+    "story": "E2-S1",
+    "group": "C",
+    "description": "If the outbox insert fails, no payment row and no event row remain (transaction rolled back)",
+    "steps": [
+      "Inject a failure in the outbox repository",
+      "Call create_payment and assert it raises",
+      "Assert payments and payment_events tables are empty"
+    ],
+    "passes": true,
+    "last_evaluated": "2026-10-05T00:00:00Z",
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F022",
+    "category": "functional",
+    "story": "E2-S1",
+    "group": "C",
+    "description": "An amount of 10,000,001 paise routes to IMPS and 50,000,001 routes to RTGS in the stored payment",
+    "steps": [
+      "Create payments at both amounts",
+      "Assert stored rail IMPS and RTGS respectively"
+    ],
+    "passes": true,
+    "last_evaluated": "2026-10-05T00:00:00Z",
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F023",
+    "category": "functional",
+    "story": "E2-S1",
+    "group": "C",
+    "description": "A request with amount 99 paise, or an empty beneficiary, or a beneficiary longer than 140 characters is rejected with a validation error and persists nothing",
+    "steps": [
+      "Submit each invalid request",
+      "Assert a validation error naming the field",
+      "Assert zero rows were written"
+    ],
+    "passes": true,
+    "last_evaluated": "2026-10-05T00:00:00Z",
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F024",
+    "category": "functional",
+    "story": "E2-S2",
+    "group": "D",
+    "description": "Replaying the same key and payload returns the original payment flagged as replay, and only one payment row exists",
+    "steps": [
+      "Create with key K",
+      "Create again with key K and identical payload",
+      "Assert same payment id, replay flag true, payments count 1"
+    ],
+    "passes": true,
+    "last_evaluated": "2026-10-05T00:00:00Z",
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F025",
+    "category": "functional",
+    "story": "E2-S2",
+    "group": "D",
+    "description": "The same key with a different amount or different beneficiary raises IdempotencyConflict and creates no new row",
+    "steps": [
+      "Create with key K",
+      "Retry with a changed amount and assert IdempotencyConflict",
+      "Retry with changed beneficiary and assert the same"
+    ],
+    "passes": true,
+    "last_evaluated": "2026-10-05T00:00:00Z",
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F026",
+    "category": "functional",
+    "story": "E2-S2",
+    "group": "D",
+    "description": "20 concurrent create calls with the same key and payload create exactly one payment and 19 replays",
+    "steps": [
+      "Fire 20 concurrent requests with one key",
+      "Assert payments count is 1",
+      "Assert 1 created result and 19 replay results"
+    ],
+    "passes": true,
+    "last_evaluated": "2026-10-05T00:00:00Z",
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F027",
+    "category": "functional",
+    "story": "E2-S2",
+    "group": "D",
+    "description": "The same key used by two different customers creates two separate payments",
+    "steps": [
+      "Create with key K as customer A and customer B",
+      "Assert two payments with different ids"
+    ],
+    "passes": true,
+    "last_evaluated": "2026-10-05T00:00:00Z",
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F028",
+    "category": "functional",
+    "story": "E2-S2",
+    "group": "D",
+    "description": "A key older than 24 hours (injected clock) is treated as expired: the same key with the same payload creates a new payment and the original is unchanged except idempotency_released_at",
+    "steps": [
+      "Create with key K",
+      "Advance the clock 24h01m",
+      "Create again and assert a new payment id",
+      "Assert the original payment row is unchanged except idempotency_released_at"
+    ],
+    "passes": true,
+    "last_evaluated": "2026-10-05T00:00:00Z",
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F029",
+    "category": "integration",
+    "story": "E2-S3",
+    "group": "E",
+    "description": "POST /payments with Idempotency-Key and a valid body returns 202 with id, state CREATED, rail and amount_paise",
+    "steps": [
+      "POST valid body with a key as a customer",
+      "Assert 202",
+      "Assert body has id, state CREATED, rail, amount_paise"
+    ],
+    "passes": true,
+    "last_evaluated": "2026-10-05",
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F030",
+    "category": "integration",
+    "story": "E2-S3",
+    "group": "E",
+    "description": "A replay returns 200 with the original id, a payload mismatch returns 409, amount 99 returns 422 with a field error on amount, and a missing Idempotency-Key returns 422",
+    "steps": [
+      "POST the same key and body twice and assert 200 on the second",
+      "POST the same key with a different body and assert 409",
+      "POST amount 99 and assert 422 with field amount",
+      "POST without the header and assert 422"
+    ],
+    "passes": true,
+    "last_evaluated": "2026-10-05",
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F031",
+    "category": "security",
+    "story": "E2-S3",
+    "group": "E",
+    "description": "GET /payments/{id} returns the payment with events and attempts arrays; another customer's payment returns 404; ops and admin can read any payment",
+    "steps": [
+      "GET own payment and assert events and attempts keys",
+      "GET another customer's payment as customer and assert 404",
+      "GET it as ops and assert 200"
+    ],
+    "passes": true,
+    "last_evaluated": "2026-10-05",
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F032",
+    "category": "integration",
+    "story": "E2-S3",
+    "group": "E",
+    "description": "GET /payments returns only the caller's payments newest first for a customer, supports ?state=, and ops/admin see all payments with optional ?customer_id=",
+    "steps": [
+      "Create payments for two customers",
+      "GET as customer A and assert only A's, newest first",
+      "GET with state=COMPLETED and assert filtering",
+      "GET as ops and assert both customers appear"
+    ],
+    "passes": true,
+    "last_evaluated": "2026-10-05",
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F033",
+    "category": "security",
+    "story": "E2-S3",
+    "group": "E",
+    "description": "POST /payments as ops or admin returns 403",
+    "steps": [
+      "POST /payments with X-Role ops",
+      "Assert 403",
+      "Repeat as admin and assert 403"
+    ],
+    "passes": true,
+    "last_evaluated": "2026-10-05",
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F034",
+    "category": "functional",
+    "story": "E2-S4",
+    "group": "D",
+    "description": "The worker moves a CREATED payment to SUBMITTED then COMPLETED, records one attempt with outcome success, and appends PAYMENT_SUBMITTED and PAYMENT_COMPLETED events",
+    "steps": [
+      "Create a payment and run one worker cycle",
+      "Assert state COMPLETED",
+      "Assert one attempt with outcome success",
+      "Assert both events exist in order"
+    ],
+    "passes": true,
+    "last_evaluated": "2026-10-05T00:00:00Z",
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F035",
+    "category": "functional",
+    "story": "E2-S4",
+    "group": "D",
+    "description": "UPI, NEFT, RTGS and IMPS adapters implement one RailAdapter interface, and submitting the same payment id twice returns the same rail reference",
+    "steps": [
+      "Submit a payment id to each adapter twice",
+      "Assert both calls return an identical rail reference per adapter"
+    ],
+    "passes": true,
+    "last_evaluated": "2026-10-05T00:00:00Z",
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F036",
+    "category": "integration",
+    "story": "E2-S4",
+    "group": "D",
+    "description": "The worker starts as an asyncio task in the FastAPI lifespan and stops cleanly on shutdown without pending-task warnings",
+    "steps": [
+      "Start the app with TestClient",
+      "Assert the worker task is running",
+      "Exit the context and assert the task is done"
+    ],
+    "passes": true,
+    "last_evaluated": "2026-10-05T00:00:00Z",
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F037",
+    "category": "functional",
+    "story": "E2-S4",
+    "group": "D",
+    "description": "A processed outbox row is marked SENT and is not processed again on later polls",
+    "steps": [
+      "Run the worker for two poll cycles",
+      "Assert the adapter was called once for the payment",
+      "Assert the outbox status is SENT"
+    ],
+    "passes": true,
+    "last_evaluated": "2026-10-05T00:00:00Z",
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F038",
+    "category": "ui",
+    "story": "E3-S1",
+    "group": "F",
+    "description": "The form has labelled Amount (Rs) and Beneficiary fields, and an idempotency key (UUID) generated per form session and regenerated after a successful new submission",
+    "steps": [
+      "Render the form",
+      "Assert both fields are found by label",
+      "Submit and assert the Idempotency-Key header is a UUID",
+      "After success assert a new key is generated for the next form"
+    ],
+    "passes": true,
+    "last_evaluated": "2026-10-05",
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F039",
+    "category": "ui",
+    "story": "E3-S1",
+    "group": "F",
+    "description": "The rail preview shows UPI for 1,00,000, IMPS for 100000.50, NEFT for 200000.01 and RTGS for 500000.01, and shows no rail for 0.99",
+    "steps": [
+      "Type each amount",
+      "Assert the preview text equals the expected rail",
+      "Type 0.99 and assert no rail shown"
+    ],
+    "passes": true,
+    "last_evaluated": "2026-10-05",
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F040",
+    "category": "ui",
+    "story": "E3-S1",
+    "group": "F",
+    "description": "A 422 response shows the field message 'Amount must be at least Rs 1' beside the amount field, and zero or negative amounts show a field error before submit",
+    "steps": [
+      "Mock a 422 response and submit",
+      "Assert the message beside the amount input",
+      "Type 0 and -5 and assert a client-side field error"
+    ],
+    "passes": true,
+    "last_evaluated": "2026-10-05",
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F041",
+    "category": "ui",
+    "story": "E3-S1",
+    "group": "F",
+    "description": "A 409 shows 'This request was already submitted with different details. Start a new payment.', a 200 replay shows 'This payment was already created. Showing the original.' and navigates to /payments/{id}, and a 202 navigates to /payments/{id}",
+    "steps": [
+      "Mock 409 and assert the message",
+      "Mock 200 and assert the message and the navigation",
+      "Mock 202 and assert the navigation"
+    ],
+    "passes": true,
+    "last_evaluated": "2026-10-05",
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F042",
+    "category": "ui",
+    "story": "E3-S1",
+    "group": "F",
+    "description": "The submit button is disabled with a progress label while pending, and 1,00,000.50 is sent as 10000050 paise via string parsing, not floating point",
+    "steps": [
+      "Submit and assert the button is disabled and shows a progress label",
+      "Intercept the request and assert amount_paise is the integer 10000050"
+    ],
+    "passes": true,
+    "last_evaluated": "2026-10-05",
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F043",
+    "category": "ui",
+    "story": "E3-S2",
+    "group": "F",
+    "description": "Each row shows amount formatted like 'Rs 1,00,000.50', rail, state as text, reason code when FAILED, and created time",
+    "steps": [
+      "Render with a payment of 10000050 paise",
+      "Assert the text 'Rs 1,00,000.50'",
+      "Render a FAILED payment and assert its reason code text"
+    ],
+    "passes": true,
+    "last_evaluated": "2026-10-05",
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F044",
+    "category": "ui",
+    "story": "E3-S2",
+    "group": "F",
+    "description": "Empty shows 'No payments yet' with a link to the new payment form, loading shows skeleton rows, and an API error shows a retry banner with the failure message that refetches on click",
+    "steps": [
+      "Mock an empty list and assert the message and the link",
+      "Mock a pending request and assert skeleton rows",
+      "Mock a 500, click Retry and assert a refetch"
+    ],
+    "passes": true,
+    "last_evaluated": "2026-10-05",
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F045",
+    "category": "ui",
+    "story": "E3-S2",
+    "group": "F",
+    "description": "Each row links to /payments/{id}, and the table has a caption and is fully keyboard navigable",
+    "steps": [
+      "Tab to the first row link and press Enter",
+      "Assert navigation to the detail route",
+      "Assert table has an accessible caption"
+    ],
+    "passes": true,
+    "last_evaluated": "2026-10-05",
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F046",
+    "category": "ui",
+    "story": "E3-S2",
+    "group": "F",
+    "description": "State is conveyed by a text badge, and the badge text exists for CREATED, SUBMITTED, COMPLETED and FAILED independent of colour",
+    "steps": [
+      "Render one payment per state",
+      "Assert each state text is in the DOM"
+    ],
+    "passes": true,
+    "last_evaluated": "2026-10-05",
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F047",
+    "category": "ui",
+    "story": "E3-S3",
+    "group": "F",
+    "description": "The detail page shows the payment fields, an event timeline in chronological order and an attempts table with attempt number and outcome",
+    "steps": [
+      "Render with 3 events and 2 attempts",
+      "Assert the timeline order",
+      "Assert the attempts rows"
+    ],
+    "passes": true,
+    "last_evaluated": "2026-10-05",
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F048",
+    "category": "ui",
+    "story": "E3-S3",
+    "group": "F",
+    "description": "While the state is CREATED or SUBMITTED the page polls GET /payments/{id} every 2 seconds, and stops once COMPLETED or FAILED",
+    "steps": [
+      "Use fake timers with a CREATED response",
+      "Advance 6s and assert 3 extra calls",
+      "Return COMPLETED, advance 6s and assert no further calls"
+    ],
+    "passes": true,
+    "last_evaluated": "2026-10-05",
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F049",
+    "category": "ui",
+    "story": "E3-S3",
+    "group": "F",
+    "description": "FAILED shows the reason code as text, and an unknown id shows a not-found message with a back link to /payments",
+    "steps": [
+      "Render a FAILED payment and assert reason code text",
+      "Mock a 404 and assert the message and the back link"
+    ],
+    "passes": true,
+    "last_evaluated": "2026-10-05",
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F050",
+    "category": "ui",
+    "story": "E3-S3",
+    "group": "F",
+    "description": "Loading shows a skeleton timeline, and at a 375px viewport the page has no horizontal scroll",
+    "steps": [
+      "Mock a pending request and assert the skeleton",
+      "Set viewport 375px and assert scrollWidth <= clientWidth"
+    ],
+    "passes": true,
+    "last_evaluated": "2026-10-05",
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F051",
+    "category": "integration",
+    "story": "E4-S1",
+    "group": "E",
+    "description": "PUT /admin/simulation/{rail} accepts mode success, permanent_failure with reason_code, or transient with transient_failure_rate in [0,1], returns 200 echoing the config, and a rate of 1.5 returns 422",
+    "steps": [
+      "PUT mode permanent_failure with reason INSUFFICIENT_FUNDS and assert 200 echo",
+      "PUT transient with rate 1.5 and assert 422"
+    ],
+    "passes": true,
+    "last_evaluated": "2026-10-05T00:00:00Z",
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F052",
+    "category": "integration",
+    "story": "E4-S1",
+    "group": "E",
+    "description": "GET /admin/simulation returns the config of all four rails, all defaulting to success",
+    "steps": [
+      "GET as admin on a fresh app",
+      "Assert four entries each with mode success"
+    ],
+    "passes": true,
+    "last_evaluated": "2026-10-05T00:00:00Z",
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F053",
+    "category": "security",
+    "story": "E4-S1",
+    "group": "E",
+    "description": "Non-admin roles calling either simulation endpoint receive 403",
+    "steps": [
+      "Call PUT and GET as customer",
+      "Assert 403",
+      "Repeat as ops and assert 403"
+    ],
+    "passes": true,
+    "last_evaluated": "2026-10-05T00:00:00Z",
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F054",
+    "category": "functional",
+    "story": "E4-S1",
+    "group": "E",
+    "description": "In permanent_failure mode the adapter raises PermanentRailError carrying the configured reason code",
+    "steps": [
+      "Set UPI to permanent_failure with INSUFFICIENT_FUNDS",
+      "Call the adapter submit",
+      "Assert PermanentRailError with that code"
+    ],
+    "passes": true,
+    "last_evaluated": "2026-10-05T00:00:00Z",
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F055",
+    "category": "functional",
+    "story": "E4-S1",
+    "group": "E",
+    "description": "With a seeded RNG, transient rate 1.0 raises TransientRailError on every call and rate 0.0 never does over 100 calls",
+    "steps": [
+      "Set rate 1.0 and call 100 times and assert 100 errors",
+      "Set rate 0.0 and call 100 times and assert 0 errors"
+    ],
+    "passes": true,
+    "last_evaluated": "2026-10-05T00:00:00Z",
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F056",
+    "category": "functional",
+    "story": "E4-S2",
+    "group": "F",
+    "description": "Two transient failures then a success complete the payment on attempt 3 with attempts recorded as transient, transient, success",
+    "steps": [
+      "Script the adapter to fail twice then succeed",
+      "Run the worker with an injected clock",
+      "Assert COMPLETED and three attempts with the expected outcomes"
+    ],
+    "passes": true,
+    "last_evaluated": "2026-10-05",
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F057",
+    "category": "functional",
+    "story": "E4-S2",
+    "group": "F",
+    "description": "Retry delays between attempts are 1, 2, 4 and 8 seconds, reflected in outbox next_attempt_at",
+    "steps": [
+      "Script 4 transient failures",
+      "Assert next_attempt_at after each failure is now + 1, 2, 4, 8 seconds"
+    ],
+    "passes": true,
+    "last_evaluated": "2026-10-05",
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F058",
+    "category": "functional",
+    "story": "E4-S2",
+    "group": "F",
+    "description": "Five consecutive transient failures set the payment to FAILED with reason code RETRIES_EXHAUSTED and exactly 5 attempts",
+    "steps": [
+      "Set transient rate 1.0",
+      "Run the worker through all retries",
+      "Assert FAILED, reason RETRIES_EXHAUSTED, 5 attempts"
+    ],
+    "passes": true,
+    "last_evaluated": "2026-10-05",
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F059",
+    "category": "functional",
+    "story": "E4-S2",
+    "group": "F",
+    "description": "A permanent failure with INSUFFICIENT_FUNDS sets FAILED immediately with that reason code and exactly 1 attempt",
+    "steps": [
+      "Set the rail to permanent_failure INSUFFICIENT_FUNDS",
+      "Run the worker",
+      "Assert FAILED, reason INSUFFICIENT_FUNDS, 1 attempt"
+    ],
+    "passes": true,
+    "last_evaluated": "2026-10-05",
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F060",
+    "category": "functional",
+    "story": "E4-S2",
+    "group": "F",
+    "description": "Each retry scheduling and each failure appends PAYMENT_RETRY_SCHEDULED and PAYMENT_FAILED events respectively",
+    "steps": [
+      "Run a 2-failures-then-success scenario",
+      "Assert 2 PAYMENT_RETRY_SCHEDULED events",
+      "Run a permanent failure and assert one PAYMENT_FAILED event"
+    ],
+    "passes": true,
+    "last_evaluated": "2026-10-05",
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F061",
+    "category": "functional",
+    "story": "E4-S3",
+    "group": "G",
+    "description": "An outbox row left IN_PROGRESS at startup is resumed after a simulated restart and its payment reaches a terminal state",
+    "steps": [
+      "Insert an IN_PROGRESS row for a CREATED payment",
+      "Start a new worker",
+      "Assert the payment reaches COMPLETED"
+    ],
+    "passes": true,
+    "last_evaluated": "2026-10-05",
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F062",
+    "category": "functional",
+    "story": "E4-S3",
+    "group": "G",
+    "description": "If the process dies after the rail accepted but before the database update, the resumed submission returns the same rail reference and the rail holds exactly one entry for that payment",
+    "steps": [
+      "Simulate a crash after adapter submit",
+      "Restart the worker",
+      "Assert the adapter statement has 1 entry for the payment id"
+    ],
+    "passes": true,
+    "last_evaluated": "2026-10-05",
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F063",
+    "category": "functional",
+    "story": "E4-S3",
+    "group": "G",
+    "description": "The worker never processes an outbox row before its next_attempt_at",
+    "steps": [
+      "Create a row with next_attempt_at in the future",
+      "Run a cycle and assert it is untouched",
+      "Advance the clock and assert it is processed"
+    ],
+    "passes": true,
+    "last_evaluated": "2026-10-05",
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F064",
+    "category": "integration",
+    "story": "E4-S3",
+    "group": "G",
+    "description": "Killing the worker mid-batch of 10 payments and restarting results in all 10 reaching a terminal state exactly once",
+    "steps": [
+      "Create 10 payments",
+      "Cancel the worker after 4 are processed",
+      "Start a new worker and assert 10 terminal states and 10 attempts of outcome success"
+    ],
+    "passes": true,
+    "last_evaluated": "2026-10-05",
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F065",
+    "category": "functional",
+    "story": "E4-S4",
+    "group": "H",
+    "description": "A payment in SUBMITTED for 5m01s is flagged stuck and one at 4m59s is not",
+    "steps": [
+      "Create SUBMITTED payments with ages 4m59s and 5m01s using an injected clock",
+      "Run detection",
+      "Assert only the older one is flagged"
+    ],
+    "passes": true,
+    "last_evaluated": "2026-10-05",
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F066",
+    "category": "integration",
+    "story": "E4-S4",
+    "group": "H",
+    "description": "GET /ops/stuck-payments as ops or admin returns the stuck payments with age_seconds, and a customer receives 403",
+    "steps": [
+      "GET as ops and assert the list with age_seconds",
+      "GET as customer and assert 403"
+    ],
+    "passes": true,
+    "last_evaluated": "2026-10-05",
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F067",
+    "category": "functional",
+    "story": "E4-S4",
+    "group": "H",
+    "description": "Flagging appends one PAYMENT_FLAGGED_STUCK event and running detection repeatedly does not append duplicates",
+    "steps": [
+      "Run detection 3 times",
+      "Assert exactly one PAYMENT_FLAGGED_STUCK event for the payment"
+    ],
+    "passes": true,
+    "last_evaluated": "2026-10-05",
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F068",
+    "category": "functional",
+    "story": "E4-S4",
+    "group": "H",
+    "description": "A flagged payment that reaches COMPLETED or FAILED no longer appears in the stuck list",
+    "steps": [
+      "Flag a payment",
+      "Complete it",
+      "GET stuck payments and assert it is absent"
+    ],
+    "passes": true,
+    "last_evaluated": "2026-10-05",
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F069",
+    "category": "ui",
+    "story": "E4-S5",
+    "group": "I",
+    "description": "The Simulation screen shows one card per rail with a mode radio group, a reason-code select for permanent failure and a rate input for transient, and saving calls PUT and shows a confirmation",
+    "steps": [
+      "Render as admin",
+      "Assert four rail cards",
+      "Change UPI to transient 0.3 and save",
+      "Assert the PUT body and a confirmation message"
+    ],
+    "passes": true,
+    "last_evaluated": "2026-10-05T00:00:00Z",
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F070",
+    "category": "ui",
+    "story": "E4-S5",
+    "group": "I",
+    "description": "A transient rate outside 0 to 1 shows a field error and does not call the API",
+    "steps": [
+      "Enter 1.5 and save",
+      "Assert a field error",
+      "Assert no PUT request was made"
+    ],
+    "passes": true,
+    "last_evaluated": "2026-10-05T00:00:00Z",
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F071",
+    "category": "ui",
+    "story": "E4-S5",
+    "group": "I",
+    "description": "The Stuck payments screen lists payment id, rail, amount and age, shows 'No stuck payments' when empty, and a retry banner on error",
+    "steps": [
+      "Mock a list and assert the columns",
+      "Mock empty and assert the message",
+      "Mock 500 and assert the banner"
+    ],
+    "passes": true,
+    "last_evaluated": "2026-10-05T00:00:00Z",
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F072",
+    "category": "ui",
+    "story": "E4-S5",
+    "group": "I",
+    "description": "All simulation form controls have programmatic labels and are operable by keyboard alone",
+    "steps": [
+      "Assert every control is found by label",
+      "Tab through and toggle each mode with the keyboard"
+    ],
+    "passes": true,
+    "last_evaluated": "2026-10-05T00:00:00Z",
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F073",
+    "category": "integration",
+    "story": "E5-S1",
+    "group": "E",
+    "description": "POST /refunds with a COMPLETED own payment returns 201 with state REQUESTED, amount_paise equal to the payment amount and requested_by equal to the customer id, and appends a REFUND_REQUESTED event",
+    "steps": [
+      "POST /refunds for a COMPLETED payment",
+      "Assert 201 and state REQUESTED",
+      "Assert amount equals payment amount and requested_by",
+      "Assert the event"
+    ],
+    "passes": true,
+    "last_evaluated": "2026-10-05",
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F074",
+    "category": "integration",
+    "story": "E5-S1",
+    "group": "E",
+    "description": "A payment in CREATED, SUBMITTED or FAILED is rejected with 422 and code PAYMENT_NOT_REFUNDABLE",
+    "steps": [
+      "POST /refunds for a payment in each non-COMPLETED state",
+      "Assert 422 PAYMENT_NOT_REFUNDABLE each time"
+    ],
+    "passes": true,
+    "last_evaluated": "2026-10-05",
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F075",
+    "category": "functional",
+    "story": "E5-S1",
+    "group": "E",
+    "description": "A second request for the same payment returns 409, and 10 concurrent requests create exactly one refund",
+    "steps": [
+      "POST twice and assert 409 on the second",
+      "Fire 10 concurrent requests on a new payment",
+      "Assert one 201, nine 409, one refund row"
+    ],
+    "passes": true,
+    "last_evaluated": "2026-10-05",
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F076",
+    "category": "security",
+    "story": "E5-S1",
+    "group": "E",
+    "description": "Requesting a refund on another customer's payment returns 404, and ops or admin calling POST /refunds returns 403",
+    "steps": [
+      "POST as customer B for A's payment and assert 404",
+      "POST as ops and assert 403"
+    ],
+    "passes": true,
+    "last_evaluated": "2026-10-05",
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F077",
+    "category": "integration",
+    "story": "E5-S1",
+    "group": "E",
+    "description": "GET /refunds returns only the caller's refunds for a customer, and all refunds with ?state= filtering for admin",
+    "steps": [
+      "Create refunds for two customers",
+      "GET as customer and assert only own",
+      "GET as admin with state=REQUESTED and assert filtering"
+    ],
+    "passes": true,
+    "last_evaluated": "2026-10-05",
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F078",
+    "category": "integration",
+    "story": "E5-S2",
+    "group": "F",
+    "description": "POST /refunds/{id}/approve moves REQUESTED to APPROVED then EXECUTED via the adapter reversal, sets decided_by to the admin id and appends REFUND_EXECUTED",
+    "steps": [
+      "Approve a REQUESTED refund as admin",
+      "Assert final state EXECUTED and decided_by",
+      "Assert the adapter reversal was called once and the event exists"
+    ],
+    "passes": true,
+    "last_evaluated": "2026-10-05",
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F079",
+    "category": "integration",
+    "story": "E5-S2",
+    "group": "F",
+    "description": "POST /refunds/{id}/reject sets REJECTED with decided_by, and the payment remains COMPLETED",
+    "steps": [
+      "Reject as admin",
+      "Assert REJECTED and decided_by",
+      "Assert payment state is COMPLETED"
+    ],
+    "passes": true,
+    "last_evaluated": "2026-10-05",
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F080",
+    "category": "functional",
+    "story": "E5-S2",
+    "group": "F",
+    "description": "Approving or rejecting an already decided refund returns 409 REFUND_ALREADY_DECIDED, and two concurrent approvals result in one success and one 409",
+    "steps": [
+      "Approve twice and assert 409",
+      "Fire two concurrent approvals on a new refund",
+      "Assert one 200 and one 409 and one reversal call"
+    ],
+    "passes": true,
+    "last_evaluated": "2026-10-05",
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F081",
+    "category": "functional",
+    "story": "E5-S2",
+    "group": "F",
+    "description": "A permanent adapter failure on reversal sets the refund FAILED with the reason code and leaves the payment COMPLETED",
+    "steps": [
+      "Set the rail to permanent_failure REVERSAL_REJECTED",
+      "Approve",
+      "Assert refund FAILED with that reason code",
+      "Assert payment COMPLETED"
+    ],
+    "passes": true,
+    "last_evaluated": "2026-10-05",
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F082",
+    "category": "security",
+    "story": "E5-S2",
+    "group": "F",
+    "description": "Approve and reject return 403 for customer and ops and 404 for an unknown refund id",
+    "steps": [
+      "Call approve as customer and ops and assert 403",
+      "Call as admin with an unknown id and assert 404"
+    ],
+    "passes": true,
+    "last_evaluated": "2026-10-05",
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F083",
+    "category": "ui",
+    "story": "E5-S3",
+    "group": "G",
+    "description": "The Request refund button appears only on COMPLETED payments that have no refund",
+    "steps": [
+      "Render detail for COMPLETED without refund and assert the button",
+      "Render for FAILED and assert absent",
+      "Render COMPLETED with a refund and assert absent"
+    ],
+    "passes": true,
+    "last_evaluated": "2026-10-05",
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F084",
+    "category": "ui",
+    "story": "E5-S3",
+    "group": "G",
+    "description": "Clicking the button disables it while the request is pending and then shows the text 'Refund requested'",
+    "steps": [
+      "Click the button",
+      "Assert disabled during the request",
+      "Assert 'Refund requested' after 201"
+    ],
+    "passes": true,
+    "last_evaluated": "2026-10-05",
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F085",
+    "category": "ui",
+    "story": "E5-S3",
+    "group": "G",
+    "description": "A 409 shows 'A refund was already requested for this payment'",
+    "steps": [
+      "Mock 409",
+      "Click the button",
+      "Assert the message"
+    ],
+    "passes": true,
+    "last_evaluated": "2026-10-05",
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F086",
+    "category": "ui",
+    "story": "E5-S3",
+    "group": "G",
+    "description": "The detail page shows the refund state, and the reason code as text when the refund is REJECTED or FAILED",
+    "steps": [
+      "Render refunds in EXECUTED, REJECTED and FAILED states",
+      "Assert the state text each time and the reason code for the last two"
+    ],
+    "passes": true,
+    "last_evaluated": "2026-10-05",
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F087",
+    "category": "ui",
+    "story": "E5-S4",
+    "group": "G",
+    "description": "The queue lists REQUESTED refunds with payment id, amount in Indian grouping and requester, and shows 'No refunds pending' when empty",
+    "steps": [
+      "Mock two refunds and assert the columns",
+      "Mock empty and assert the message"
+    ],
+    "passes": true,
+    "last_evaluated": "2026-10-05",
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F088",
+    "category": "ui",
+    "story": "E5-S4",
+    "group": "G",
+    "description": "Approve and reject buttons call their endpoints and the row updates to the final state text",
+    "steps": [
+      "Click Approve and assert POST approve and the text EXECUTED",
+      "Click Reject on another row and assert POST reject and REJECTED"
+    ],
+    "passes": true,
+    "last_evaluated": "2026-10-05",
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F089",
+    "category": "ui",
+    "story": "E5-S4",
+    "group": "G",
+    "description": "A 409 shows 'This refund was already decided'",
+    "steps": [
+      "Mock 409 on approve",
+      "Click Approve",
+      "Assert the message"
+    ],
+    "passes": true,
+    "last_evaluated": "2026-10-05",
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F090",
+    "category": "ui",
+    "story": "E5-S4",
+    "group": "G",
+    "description": "Loading shows skeleton rows, errors show a retry banner, and buttons have names that include the payment id for screen readers",
+    "steps": [
+      "Mock pending and assert skeleton",
+      "Mock 500 and assert banner",
+      "Assert button accessible names include the payment id"
+    ],
+    "passes": true,
+    "last_evaluated": "2026-10-05",
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F091",
+    "category": "functional",
+    "story": "E6-S1",
+    "group": "E",
+    "description": "Generating a statement for a date persists one RailStatementEntry per COMPLETED payment with rail, payment_ref, amount_paise and statement_date",
+    "steps": [
+      "Complete 3 payments",
+      "Generate the statement",
+      "Assert 3 entries with matching fields"
+    ],
+    "passes": true,
+    "last_evaluated": "2026-10-05",
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F092",
+    "category": "functional",
+    "story": "E6-S1",
+    "group": "E",
+    "description": "An entry matching payment id, rail reference and amount is recorded as matched",
+    "steps": [
+      "Run reconciliation on a clean statement",
+      "Assert all results are matched"
+    ],
+    "passes": true,
+    "last_evaluated": "2026-10-05",
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F093",
+    "category": "functional",
+    "story": "E6-S1",
+    "group": "E",
+    "description": "An entry whose amount differs by 1 paise is recorded as amount_mismatch",
+    "steps": [
+      "Alter one entry amount by 1 paise",
+      "Run reconciliation",
+      "Assert exactly one amount_mismatch"
+    ],
+    "passes": true,
+    "last_evaluated": "2026-10-05",
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F094",
+    "category": "functional",
+    "story": "E6-S1",
+    "group": "E",
+    "description": "A COMPLETED payment with no entry is unmatched_internal, and an entry with no payment is unmatched_external",
+    "steps": [
+      "Delete one entry and inject one extra entry",
+      "Run reconciliation",
+      "Assert one unmatched_internal and one unmatched_external"
+    ],
+    "passes": true,
+    "last_evaluated": "2026-10-05",
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F095",
+    "category": "functional",
+    "story": "E6-S1",
+    "group": "E",
+    "description": "Against the seeded corpus in specs/test_artefacts, 100% of seeded anomalies are flagged and no clean entry is flagged",
+    "steps": [
+      "Load the seeded corpus",
+      "Run reconciliation",
+      "Assert flagged set equals the seeded anomaly set exactly"
+    ],
+    "passes": true,
+    "last_evaluated": "2026-10-05",
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F096",
+    "category": "functional",
+    "story": "E6-S1",
+    "group": "E",
+    "description": "Re-running reconciliation for the same date creates no duplicate result rows",
+    "steps": [
+      "Run twice for one date",
+      "Assert the result row count is unchanged after the second run"
+    ],
+    "passes": true,
+    "last_evaluated": "2026-10-05",
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F097",
+    "category": "integration",
+    "story": "E6-S2",
+    "group": "F",
+    "description": "POST /reconciliation/run with a statement_date as ops or admin returns 200 with counts per status",
+    "steps": [
+      "POST as ops with a date",
+      "Assert 200",
+      "Assert counts for matched, unmatched_internal, unmatched_external, amount_mismatch"
+    ],
+    "passes": true,
+    "last_evaluated": "2026-10-05",
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F098",
+    "category": "integration",
+    "story": "E6-S2",
+    "group": "F",
+    "description": "GET /reconciliation/unmatched returns unresolved non-matched results and supports ?status= and ?rail= filters",
+    "steps": [
+      "Seed mixed results",
+      "GET and assert no matched or resolved rows",
+      "GET with status=amount_mismatch and assert filtering"
+    ],
+    "passes": true,
+    "last_evaluated": "2026-10-05",
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F099",
+    "category": "integration",
+    "story": "E6-S2",
+    "group": "F",
+    "description": "POST /reconciliation/{id}/resolve with a note sets resolved true and stores the note, an empty note returns 422, and resolving again returns 409",
+    "steps": [
+      "Resolve with note and assert resolved true",
+      "Resolve with empty note and assert 422",
+      "Resolve again and assert 409"
+    ],
+    "passes": true,
+    "last_evaluated": "2026-10-05",
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F100",
+    "category": "security",
+    "story": "E6-S2",
+    "group": "F",
+    "description": "A customer calling any reconciliation endpoint receives 403",
+    "steps": [
+      "Call run, unmatched and resolve as customer",
+      "Assert 403 each"
+    ],
+    "passes": true,
+    "last_evaluated": "2026-10-05",
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F101",
+    "category": "functional",
+    "story": "E6-S2",
+    "group": "F",
+    "description": "Resolving an entry changes neither the payment record nor any amount_paise value",
+    "steps": [
+      "Snapshot the payment and entry",
+      "Resolve the result",
+      "Assert both snapshots are unchanged"
+    ],
+    "passes": true,
+    "last_evaluated": "2026-10-05",
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F102",
+    "category": "ui",
+    "story": "E6-S3",
+    "group": "G",
+    "description": "The run form has a labelled date input and shows counts per status after a successful run",
+    "steps": [
+      "Enter a date and submit",
+      "Assert the POST body",
+      "Assert the four counts are displayed"
+    ],
+    "passes": true,
+    "last_evaluated": "2026-10-05",
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F103",
+    "category": "ui",
+    "story": "E6-S3",
+    "group": "G",
+    "description": "The unmatched queue shows status as text, rail and both amounts, and shows 'Nothing to reconcile' when empty",
+    "steps": [
+      "Mock entries and assert columns",
+      "Mock empty and assert the message"
+    ],
+    "passes": true,
+    "last_evaluated": "2026-10-05",
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F104",
+    "category": "ui",
+    "story": "E6-S3",
+    "group": "G",
+    "description": "The resolve dialog requires a note, shows a field error when empty, and on success removes the row from the queue",
+    "steps": [
+      "Open the dialog and submit empty and assert the field error",
+      "Enter a note and submit",
+      "Assert the row is removed"
+    ],
+    "passes": true,
+    "last_evaluated": "2026-10-05",
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F105",
+    "category": "ui",
+    "story": "E6-S3",
+    "group": "G",
+    "description": "Loading shows skeleton rows, errors show a retry banner, and the dialog traps focus and returns it to the trigger on close",
+    "steps": [
+      "Mock pending and assert skeleton",
+      "Mock 500 and assert banner",
+      "Open and close the dialog and assert focus handling"
+    ],
+    "passes": true,
+    "last_evaluated": "2026-10-05",
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F106",
+    "category": "functional",
+    "story": "E7-S1",
+    "group": "F",
+    "description": "The file for a business date has one row per COMPLETED payment of that IST day with columns payment_id, rail, amount_paise, rail_ref, recon_status and unmatched_flag; a payment at 18:29:59Z belongs to that date and one at 18:30:00Z to the next",
+    "steps": [
+      "Create payments at 18:29:59Z and 18:30:00Z on 2026-10-04",
+      "Generate for 2026-10-04",
+      "Assert only the first is included and the columns are correct"
+    ],
+    "passes": true,
+    "last_evaluated": "2026-10-05",
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F107",
+    "category": "functional",
+    "story": "E7-S1",
+    "group": "F",
+    "description": "Unmatched and amount_mismatch rows are included with unmatched_flag true and do not block generation",
+    "steps": [
+      "Seed one amount_mismatch and one unmatched_internal",
+      "Generate",
+      "Assert both rows exist with unmatched_flag true and the file was written"
+    ],
+    "passes": true,
+    "last_evaluated": "2026-10-05",
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F108",
+    "category": "functional",
+    "story": "E7-S1",
+    "group": "F",
+    "description": "The file ends with a footer holding row_count and a SHA-256 checksum that equals the recomputed checksum of the data rows, and a SettlementFile record with kind primary is stored",
+    "steps": [
+      "Generate a file",
+      "Recompute the checksum over the data rows",
+      "Assert it equals the footer value and the stored record"
+    ],
+    "passes": true,
+    "last_evaluated": "2026-10-05",
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F109",
+    "category": "functional",
+    "story": "E7-S1",
+    "group": "F",
+    "description": "A second run for the same date does not overwrite the primary file (identical bytes and checksum)",
+    "steps": [
+      "Generate and hash the file",
+      "Run again for the same date",
+      "Assert the primary file hash is unchanged"
+    ],
+    "passes": true,
+    "last_evaluated": "2026-10-05",
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F110",
+    "category": "functional",
+    "story": "E7-S1",
+    "group": "F",
+    "description": "Entries completed after the primary file go to a follow-up file with kind followup containing only entries absent from the primary, and no follow-up is created when there are none",
+    "steps": [
+      "Add a late completed payment",
+      "Run again and assert a followup file with exactly that row",
+      "Run again and assert no new file"
+    ],
+    "passes": true,
+    "last_evaluated": "2026-10-05",
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F111",
+    "category": "functional",
+    "story": "E7-S2",
+    "group": "G",
+    "description": "The scheduler computes the next run as 23:59 Asia/Kolkata and fires once per business day under an injected clock",
+    "steps": [
+      "Set the clock to 2026-10-04 10:00 IST and assert next run 23:59 the same day",
+      "Advance past 23:59 and assert exactly one run",
+      "Advance one minute more and assert no second run"
+    ],
+    "passes": true,
+    "last_evaluated": "2026-10-05",
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F112",
+    "category": "integration",
+    "story": "E7-S2",
+    "group": "G",
+    "description": "POST /settlement/run as admin returns 201 for a first run (primary), and 200 with kind followup or a message that the primary exists for a repeated run",
+    "steps": [
+      "POST for a date and assert 201 primary",
+      "POST again and assert 200 and the primary-exists indication"
+    ],
+    "passes": true,
+    "last_evaluated": "2026-10-05",
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F113",
+    "category": "integration",
+    "story": "E7-S2",
+    "group": "G",
+    "description": "GET /settlement/files lists files with id, business_date, kind, row_count, checksum, and GET /settlement/files/{id} returns the CSV as text/csv, with 404 for an unknown id",
+    "steps": [
+      "GET the list and assert fields",
+      "GET a file and assert content-type text/csv",
+      "GET an unknown id and assert 404"
+    ],
+    "passes": true,
+    "last_evaluated": "2026-10-05",
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F114",
+    "category": "security",
+    "story": "E7-S2",
+    "group": "G",
+    "description": "Customer and ops roles receive 403 on every settlement endpoint",
+    "steps": [
+      "Call all three endpoints as customer and ops",
+      "Assert 403 each"
+    ],
+    "passes": true,
+    "last_evaluated": "2026-10-05",
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F115",
+    "category": "ui",
+    "story": "E7-S3",
+    "group": "H",
+    "description": "The list shows business date, kind, row count, checksum and a download link per file, and 'No settlement files yet' when empty",
+    "steps": [
+      "Mock files and assert columns and links",
+      "Mock empty and assert the message"
+    ],
+    "passes": true,
+    "last_evaluated": "2026-10-05",
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F116",
+    "category": "ui",
+    "story": "E7-S3",
+    "group": "H",
+    "description": "Run now posts to /settlement/run and shows the result, and a repeated run shows 'Primary file for this date already exists. Late entries were written to a follow-up file.'",
+    "steps": [
+      "Click Run now and assert the POST",
+      "Mock a repeated-run response and assert the message"
+    ],
+    "passes": true,
+    "last_evaluated": "2026-10-05",
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F117",
+    "category": "ui",
+    "story": "E7-S3",
+    "group": "H",
+    "description": "Loading shows skeleton rows and an error shows a retry banner",
+    "steps": [
+      "Mock pending and assert skeleton",
+      "Mock 500 and assert the banner"
+    ],
+    "passes": true,
+    "last_evaluated": "2026-10-05",
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F118",
+    "category": "ui",
+    "story": "E7-S3",
+    "group": "H",
+    "description": "Each download link has an accessible name containing the business date and kind",
+    "steps": [
+      "Render files",
+      "Assert link names include the date and kind"
+    ],
+    "passes": true,
+    "last_evaluated": "2026-10-05",
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F119",
+    "category": "integration",
+    "story": "E8-S1",
+    "group": "H",
+    "description": "GET /dashboard/summary?date= returns per-rail payment count and total_paise for that IST date",
+    "steps": [
+      "Create payments on two rails",
+      "GET the summary",
+      "Assert counts and totals per rail"
+    ],
+    "passes": true,
+    "last_evaluated": "2026-10-05",
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F120",
+    "category": "integration",
+    "story": "E8-S1",
+    "group": "H",
+    "description": "The summary includes counts for CREATED, SUBMITTED, COMPLETED and FAILED",
+    "steps": [
+      "Create payments in each state",
+      "GET the summary",
+      "Assert the four counts"
+    ],
+    "passes": true,
+    "last_evaluated": "2026-10-05",
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F121",
+    "category": "integration",
+    "story": "E8-S1",
+    "group": "H",
+    "description": "The summary includes the pending refund list and the settlement files for the date",
+    "steps": [
+      "Create a REQUESTED refund and a settlement file",
+      "GET the summary",
+      "Assert both appear"
+    ],
+    "passes": true,
+    "last_evaluated": "2026-10-05",
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F122",
+    "category": "functional",
+    "story": "E8-S1",
+    "group": "H",
+    "description": "A date with no activity returns 200 with zero values, not 404",
+    "steps": [
+      "GET for a date with no data",
+      "Assert 200 and all counts and totals are 0"
+    ],
+    "passes": true,
+    "last_evaluated": "2026-10-05",
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F123",
+    "category": "security",
+    "story": "E8-S1",
+    "group": "H",
+    "description": "Non-admin roles receive 403",
+    "steps": [
+      "GET as customer and ops",
+      "Assert 403"
+    ],
+    "passes": true,
+    "last_evaluated": "2026-10-05",
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F124",
+    "category": "ui",
+    "story": "E8-S2",
+    "group": "I",
+    "description": "Volume tiles per rail show counts and totals formatted like 'Rs 1,00,000.50', and the status breakdown shows text labels with numbers",
+    "steps": [
+      "Mock a summary",
+      "Assert four rail tiles with Indian grouping",
+      "Assert status labels and counts"
+    ],
+    "passes": true,
+    "last_evaluated": "2026-10-05",
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F125",
+    "category": "ui",
+    "story": "E8-S2",
+    "group": "I",
+    "description": "A date with no activity shows zero values with 'No activity for this date'",
+    "steps": [
+      "Mock an all-zero summary",
+      "Assert the message"
+    ],
+    "passes": true,
+    "last_evaluated": "2026-10-05",
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F126",
+    "category": "ui",
+    "story": "E8-S2",
+    "group": "I",
+    "description": "The embedded refund queue supports approve and reject and updates the tile after action",
+    "steps": [
+      "Click Approve on a refund",
+      "Assert POST and the row state",
+      "Assert the pending count decrements"
+    ],
+    "passes": true,
+    "last_evaluated": "2026-10-05",
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F127",
+    "category": "ui",
+    "story": "E8-S2",
+    "group": "I",
+    "description": "A tile-level error shows a retry control for that tile only, and a date picker defaults to today in IST",
+    "steps": [
+      "Mock the settlement tile failing",
+      "Assert the retry control only there",
+      "Assert the date input defaults to the IST date"
+    ],
+    "passes": true,
+    "last_evaluated": "2026-10-05",
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F128",
+    "category": "security",
+    "story": "E9-S1",
+    "group": "F",
+    "description": "The logging filter replaces a beneficiary value with a masked form such as 'R*** K***' in message and extra fields",
+    "steps": [
+      "Log a record containing beneficiary 'Ravi Kumar'",
+      "Capture output",
+      "Assert 'Ravi Kumar' is absent and a masked form is present"
+    ],
+    "passes": true,
+    "last_evaluated": "2026-10-05",
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F129",
+    "category": "security",
+    "story": "E9-S1",
+    "group": "F",
+    "description": "Digit sequences of 9 to 18 digits are masked to the last four digits",
+    "steps": [
+      "Log '123456789012'",
+      "Assert output contains '********9012' and not the full number"
+    ],
+    "passes": true,
+    "last_evaluated": "2026-10-05",
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F130",
+    "category": "security",
+    "story": "E9-S1",
+    "group": "F",
+    "description": "Captured logs from a full run of payment creation, worker processing and refund flow contain no beneficiary text",
+    "steps": [
+      "Run the flow with beneficiary 'Sensitive Person' under log capture",
+      "Assert the string never appears in any record"
+    ],
+    "passes": true,
+    "last_evaluated": "2026-10-05",
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F131",
+    "category": "security",
+    "story": "E9-S1",
+    "group": "F",
+    "description": "Exception tracebacks logged for failures are also masked",
+    "steps": [
+      "Raise an error whose message contains an account number",
+      "Log with exc_info",
+      "Assert the full number is absent from the output"
+    ],
+    "passes": true,
+    "last_evaluated": "2026-10-05",
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F132",
+    "category": "performance",
+    "story": "E9-S2",
+    "group": "F",
+    "description": "POST /payments p95 latency is 300 ms or less across 200 requests",
+    "steps": [
+      "Send 200 POST /payments with unique keys",
+      "Compute p95",
+      "Assert <= 300 ms"
+    ],
+    "passes": true,
+    "last_evaluated": "2026-10-05",
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F133",
+    "category": "performance",
+    "story": "E9-S2",
+    "group": "F",
+    "description": "The system sustains at least 20 payments per second for 10 seconds with all payments persisted",
+    "steps": [
+      "Drive 20 requests per second for 10 seconds",
+      "Assert 200 payments rows exist",
+      "Assert no non-2xx responses"
+    ],
+    "passes": true,
+    "last_evaluated": "2026-10-05",
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F134",
+    "category": "performance",
+    "story": "E9-S2",
+    "group": "F",
+    "description": "No SQLITE_BUSY errors occur under load and all payments reach a terminal state within 60 seconds after the load stops",
+    "steps": [
+      "Run the load test",
+      "Assert logs contain no 'database is locked'",
+      "Poll until all payments are COMPLETED or FAILED"
+    ],
+    "passes": true,
+    "last_evaluated": "2026-10-05",
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F135",
+    "category": "ui",
+    "story": "E9-S3",
+    "group": "J",
+    "description": "axe-core reports zero serious or critical violations on every screen",
+    "steps": [
+      "Open each screen in Playwright for its role",
+      "Run axe-core",
+      "Assert zero serious or critical violations"
+    ],
+    "passes": true,
+    "last_evaluated": "2026-10-05",
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F136",
+    "category": "ui",
+    "story": "E9-S3",
+    "group": "J",
+    "description": "A customer can create a payment and open its detail using only the keyboard",
+    "steps": [
+      "Using only Tab, Enter and typing, fill and submit the form",
+      "Assert navigation to the detail page"
+    ],
+    "passes": true,
+    "last_evaluated": "2026-10-05",
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F137",
+    "category": "ui",
+    "story": "E9-S3",
+    "group": "J",
+    "description": "Text and interactive elements meet contrast ratio 4.5:1, verified against the design tokens",
+    "steps": [
+      "Compute the contrast of each text/background token pair",
+      "Assert every ratio >= 4.5"
+    ],
+    "passes": true,
+    "last_evaluated": "2026-10-05",
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F138",
+    "category": "ui",
+    "story": "E9-S3",
+    "group": "J",
+    "description": "No status is conveyed by colour alone: each status element has a text label",
+    "steps": [
+      "Query all status elements on each screen",
+      "Assert each has non-empty visible text"
+    ],
+    "passes": true,
+    "last_evaluated": "2026-10-05",
+    "failure_reason": null,
+    "failure_layer": null
+  }
+]

@@ -1,0 +1,26 @@
+{
+  "statement_date": "2026-10-04",
+  "payments": [
+    {"id": "pay_c00000000001", "rail": "UPI", "amount_paise": 10000, "ref": "UPI000000000001"},
+    {"id": "pay_c00000000002", "rail": "IMPS", "amount_paise": 250050, "ref": "IMPS00000000002"},
+    {"id": "pay_c00000000003", "rail": "NEFT", "amount_paise": 500000, "ref": "NEFT00000000003"},
+    {"id": "pay_c00000000004", "rail": "RTGS", "amount_paise": 20000000, "ref": "RTGS00000000004"},
+    {"id": "pay_c00000000005", "rail": "UPI", "amount_paise": 15000, "ref": "UPI000000000005"},
+    {"id": "pay_c00000000006", "rail": "UPI", "amount_paise": 99900, "ref": "UPI000000000006"},
+    {"id": "pay_c00000000007", "rail": "IMPS", "amount_paise": 12345, "ref": "IMPS00000000007"}
+  ],
+  "entries": [
+    {"payment_id": "pay_c00000000001", "rail": "UPI", "amount_paise": 10000, "ref": "UPI000000000001"},
+    {"payment_id": "pay_c00000000002", "rail": "IMPS", "amount_paise": 250050, "ref": "IMPS00000000002"},
+    {"payment_id": "pay_c00000000003", "rail": "NEFT", "amount_paise": 500000, "ref": "NEFT00000000003"},
+    {"payment_id": "pay_c00000000004", "rail": "RTGS", "amount_paise": 20000000, "ref": "RTGS00000000004"},
+    {"payment_id": "pay_c00000000005", "rail": "UPI", "amount_paise": 14999, "ref": "UPI000000000005"},
+    {"payment_id": "pay_c00000000007", "rail": "IMPS", "amount_paise": 12345, "ref": "IMPS00000000007"},
+    {"payment_id": null, "rail": "NEFT", "amount_paise": 77700, "ref": "NEFT00000000099"}
+  ],
+  "anomalies": [
+    {"status": "amount_mismatch", "payment_id": "pay_c00000000005"},
+    {"status": "unmatched_internal", "payment_id": "pay_c00000000006"},
+    {"status": "unmatched_external", "payment_ref": "NEFT00000000099"}
+  ]
+}

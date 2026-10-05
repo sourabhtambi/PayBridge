@@ -1,0 +1,18 @@
+[
+  {
+    "failure": {
+      "layer": "api",
+      "gate": "evaluator",
+      "check": "start backend: cd backend && uv run uvicorn src.main:app --port 8765",
+      "actual": {
+        "output": "error: Failed to spawn: uvicorn\n  cause: No such file or directory (os error 2)"
+      },
+      "stack_trace": "backend/pyproject.toml dependencies = [fastapi>=0.142.2] only; .venv/bin has no uvicorn. init.sh:20 and project-manifest start command both rely on it.",
+      "error_type": "import_error",
+      "files_likely_involved": [
+        "backend/pyproject.toml:6"
+      ],
+      "prior_attempts": []
+    }
+  }
+]

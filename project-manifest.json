@@ -1,0 +1,61 @@
+{
+  "name": "paybridge",
+  "description": "Payments routing, reconciliation and settlement hub consolidating UPI, NEFT, RTGS and IMPS behind a single platform with idempotency, retry, refunds and daily settlement file generation.",
+  "stack": {
+    "backend": {
+      "language": "python",
+      "version": "3.12",
+      "framework": "fastapi",
+      "package_manager": "uv",
+      "linter": "ruff",
+      "typechecker": "mypy",
+      "test_runner": "pytest"
+    },
+    "frontend": {
+      "language": "typescript",
+      "framework": "react",
+      "bundler": "vite",
+      "package_manager": "npm",
+      "linter": "eslint",
+      "typechecker": "tsc",
+      "test_runner": "vitest"
+    },
+    "database": {
+      "primary": "sqlite",
+      "secondary": null
+    },
+    "deployment": {
+      "method": "local",
+      "services": ["backend", "frontend"]
+    }
+  },
+  "evaluation": {
+    "api_base_url": "http://localhost:8000",
+    "ui_base_url": "http://localhost:3000",
+    "health_check": "http://localhost:8000/health",
+    "design_score_threshold": 8,
+    "design_max_iterations": 10,
+    "test_corpus_dir": "specs/test_artefacts"
+  },
+  "execution": {
+    "default_mode": "full",
+    "max_self_heal_attempts": 3,
+    "max_auto_iterations": 50,
+    "coverage_threshold": 80,
+    "session_chaining": true,
+    "agent_team_size": "auto",
+    "teammate_model": "sonnet"
+  },
+  "verification": {
+    "mode": "local",
+    "health_check": { "url": "http://localhost:8000/health", "retries": 5, "backoff_seconds": 2 },
+    "local": {
+      "backend_url": "http://localhost:8000",
+      "frontend_url": "http://localhost:3000",
+      "start_commands": [
+        "cd backend && uv run uvicorn src.main:app --port 8000",
+        "cd frontend && npm run dev -- --port 3000"
+      ]
+    }
+  }
+}

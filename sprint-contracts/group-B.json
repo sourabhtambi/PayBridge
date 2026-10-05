@@ -1,0 +1,54 @@
+{
+  "group": "B",
+  "stories": ["E1-S2"],
+  "features": ["F006", "F007", "F008", "F009", "F010"],
+  "contract": {
+    "api_checks": [],
+    "playwright_checks": [],
+    "design_checks": {},
+    "architecture_checks": {
+      "unit_tests": {
+        "required": true,
+        "description": "Repository-layer story with no HTTP or UI surface, so ACs 1-5 are checked by running code directly (failure_layer unit_test / repository). The evaluator runs (a) `cd backend && uv run pytest -x -q` for the full suite, which must exit 0 (E1-S1 tests still pass; coverage floor 80 if coverage is configured), and (b) its own probes via `uv run python -c` against the public API, each on a fresh file database under a temp directory (not :memory:, because WAL requires a file). It does not rely on the generator's tests alone. F006 (AC1): initialising a fresh file DB via the project's initialize_database (paybridge.repository.migrate) creates exactly these nine tables, checked via sqlite_master WHERE type='table' excluding sqlite_% names: customers, payments, payment_attempts, outbox_messages, payment_events, refunds, rail_statement_entries, reconciliation_results, settlement_files. `PRAGMA journal_mode` on a connection obtained from the repository's database layer returns 'wal'. Per-connection pragmas from data-models.md hold: synchronous=1 (NORMAL), foreign_keys=1, busy_timeout=10000. F007 (AC2): inserting two payments through the payments repository with the same (customer_id, idempotency_key) and idempotency_released_at NULL raises paybridge.types.errors.DuplicateKeyError (not a raw sqlite3.IntegrityError). Inserting a second refund for the same payment_id through the refunds repository raises DuplicateKeyError. Partial-index semantics from data-models.md section 2: the same key for a different customer_id succeeds, and after idempotency_released_at is set on the first row a new payment with the same key succeeds. F008 (AC3): the payment_events repository class exposes `append` and `list_for_payment` and has no public method whose name contains update, delete, remove, set or upsert (inspect.getmembers on the class). A raw `UPDATE payment_events ...` and a raw `DELETE FROM payment_events` on a connection each fail with sqlite3.IntegrityError or sqlite3.DatabaseError whose message contains 'append-only', and the rows are unchanged afterwards (count and payload re-read). Triggers trg_payment_events_no_update and trg_payment_events_no_delete exist. payment_events.payload with invalid JSON is rejected (CHECK json_valid), and list_for_payment returns rows in insertion (rowid) order. F009 (AC4): `PRAGMA table_info` shows the amount_paise columns of payments, refunds and rail_statement_entries have type INTEGER, and no column in any table is declared REAL/FLOAT/DOUBLE. Inserting a payment with amount_paise 99 fails with a constraint error, 100 succeeds, and 0 and -1 fail. Same boundary for refunds (99 fails, 100 succeeds). rail_statement_entries accepts amount_paise 0 and rejects -1 (data-models.md section 7). The repository insert signatures type money as int. F010 (AC5): the seed function in paybridge.repository.seed, run twice on one DB, leaves the customers table with exactly 5 rows: role customer x3, ops x1, admin x1. The ids are cus_001, cus_002, cus_003, ops_001 and adm_001 (data-models.md section 1), and every name is non-empty. The second run does not raise, adds no rows and does not change created_at of existing rows. A role outside customer/ops/admin is rejected by the CHECK."
+      },
+      "schema_conformance": {
+        "required": true,
+        "description": "The schema matches data-models.md. Indexes and uniqueness exist as named there: ux_payments_customer_key (UNIQUE, partial WHERE idempotency_released_at IS NULL), ix_payments_customer_created, ix_payments_created, ix_payments_state_submitted, ix_payments_completed_at, ix_outbox_due, ix_events_payment, ix_refunds_state, ux_recon_key, ix_recon_queue, plus UNIQUE on payment_attempts(payment_id, attempt_no), outbox_messages.payment_id, refunds.payment_id, settlement_files.path and settlement_files(business_date, sequence). Table-level CHECKs, each probed with one violating insert (must fail) and one conforming insert (must succeed): on payments (state <> 'COMPLETED' OR (rail_reference IS NOT NULL AND completed_at IS NOT NULL)) and (state <> 'FAILED' OR reason_code IS NOT NULL); on settlement_files ((kind = 'primary') = (sequence = 0)). settlement_files has BEFORE UPDATE and BEFORE DELETE triggers that abort with 'settlement_files is append-only' (data-models.md section 9). foreign_keys is enforced: a payment with an unknown customer_id raises an integrity error. Running initialize_database twice on the same file does not raise and preserves existing rows (insert a customer, re-run, the row is still present)."
+      },
+      "layering": {
+        "required": true,
+        "description": "One-way imports per architecture.md and folder-structure.md (Types -> Config -> Repository -> Service -> API), checked by grepping import statements. backend/src/paybridge/repository/** never imports from paybridge.service or paybridge.api. backend/src/paybridge/config/** never imports from paybridge.repository, paybridge.service or paybridge.api. types/** and lib/** import nothing from higher layers. Repositories only run SQL and translate uniqueness IntegrityErrors to DuplicateKeyError, with no business decisions. SQL values are always bound as parameters (no f-string, % or .format building SQL from values). sqlite3.connect appears only in the database layer (db.py and migrate.py) within backend/src."
+      },
+      "typing": {
+        "required": true,
+        "description": "`cd backend && uv run mypy src/` exits 0 and `cd backend && uv run ruff check .` exits 0. No `Any` and no `# type: ignore` in backend/src/paybridge/repository/**. No `*_paise` parameter or field is typed float (grep backend/src). Repository public methods are fully annotated and return the dataclasses from paybridge.types.models rather than raw sqlite3.Row or dict. CLAUDE.md size limits hold in files added by E1-S2: files under 300 lines and functions under 50 lines (a DDL-only schema.py constant block is exempt only if the split is noted in the handoff)."
+      },
+      "folder_structure": {
+        "required": true,
+        "description": "Every E1-S2 file listed below exists at the path given in specs/design/folder-structure.md and component-map.md. Production data files are never committed: no *.db, *.db-wal or *.db-shm file exists under backend/ or the repo root after the test run.",
+        "files_must_exist": [
+          "backend/src/paybridge/config/settings.py",
+          "backend/src/paybridge/repository/db.py",
+          "backend/src/paybridge/repository/schema.py",
+          "backend/src/paybridge/repository/migrate.py",
+          "backend/src/paybridge/repository/seed.py",
+          "backend/src/paybridge/repository/customers_repo.py",
+          "backend/src/paybridge/repository/payments_repo.py",
+          "backend/src/paybridge/repository/attempts_repo.py",
+          "backend/src/paybridge/repository/outbox_repo.py",
+          "backend/src/paybridge/repository/events_repo.py",
+          "backend/src/paybridge/repository/refunds_repo.py",
+          "backend/src/paybridge/repository/statements_repo.py",
+          "backend/src/paybridge/repository/recon_repo.py",
+          "backend/src/paybridge/repository/settlement_repo.py",
+          "backend/tests/conftest.py",
+          "backend/tests/support/fake_clock.py",
+          "backend/tests/support/factories.py",
+          "backend/tests/repository/test_schema.py",
+          "backend/tests/repository/test_seed.py",
+          "backend/tests/repository/test_payments_repo.py"
+        ]
+      }
+    }
+  }
+}

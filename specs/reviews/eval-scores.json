@@ -1,0 +1,213 @@
+[
+  {
+    "story_id": "E1-S4",
+    "group": "D",
+    "iteration": 1,
+    "timestamp": "2026-10-04T17:23:36.530638Z",
+    "scores": {
+      "design_quality": 8,
+      "originality": 6,
+      "craft": 8,
+      "functionality": 8
+    },
+    "weights": {
+      "design_quality": 1.5,
+      "originality": 1.5,
+      "craft": 1.5,
+      "functionality": 1.0
+    },
+    "weighted_score": 7.45,
+    "threshold": 8,
+    "per_criterion_minimum": 5,
+    "verdict": "FAIL",
+    "failing_criteria": [
+      "weighted_average",
+      "originality"
+    ],
+    "critique": "Shell matches mockup E1-S4 and tokens (navy header #0B2545, nav bar, bg #F4F6FA, 1180px content, 40px controls, 44px nav links, aria-current=page on /payments with nav-active-bg #1B4577, 3px #FFD166 focus ring, Primary nav landmark, skip link, labelled selects, no horizontal scroll at 375/768/1280, error banner role=alert with Retry). Deductions: Originality 6 - only a logo tile and stock navy/white chrome; the active-item treatment is just a fill (3px bottom border present but subtle); welcome card at / is a bare placeholder with no product identity. Add a distinctive brand lockup/accent colour, role-coloured chip or avatar for the session, and a more designed landing view. Craft: at 1280 nav links start at x=32 while brand starts at x=16 (misaligned left edges); header and nav span full width while content is 1180px so left edges of header/content do not align; in the error state the Role/Customer controls shift to the left and the banner is not full width (layout jump vs happy path). Functionality: at / no nav item is active so users get no current-location cue; native selects only; nothing announces role change (live region optional)."
+  },
+  {
+    "story_id": "E1-S4",
+    "group": "D",
+    "iteration": 2,
+    "timestamp": "2026-10-04T17:27:12.369985Z",
+    "scores": {
+      "design_quality": 7,
+      "originality": 7,
+      "craft": 5,
+      "functionality": 8
+    },
+    "weights": {
+      "design_quality": 1.5,
+      "originality": 1.5,
+      "craft": 1.5,
+      "functionality": 1.0
+    },
+    "weighted_score": 6.64,
+    "threshold": 8,
+    "per_criterion_minimum": 5,
+    "verdict": "FAIL",
+    "failing_criteria": [
+      "weighted_average",
+      "design_quality",
+      "originality",
+      "craft"
+    ],
+    "previous_weighted_score": 7.45,
+    "regression": true,
+    "critique": "Originality improved 6->7: PB logo tile with yellow 'Bridge' accent, role/customer session chip with dot, role-specific landing (eyebrow, blue left rule, description, quick-link cards with blue top border), active nav item has #1B4577 fill + 3px #FFD166 bottom border + bold weight (verified on /payments). Focus rings OK (3px #FFD166 on navy, #0B57B7 on light, skip link first). No horizontal scroll at 1280/768/375. BUT alignment regressed and is now worse than iteration 1. Measured at 1280 (left x of text): nav first link 16; brand mark 208.6 (customer) / 427.4 (ops) / 419.5 (admin); main h1 86 (main box at 50, landing rule at 66); error state brand 66. The header inner .shell is shrink-wrapped and centred in the happy path, so brand and controls float and the brand logo jumps ~220px when switching role (customer->ops) and 8px ops->admin; at 768 the brand sits at x=16 for customer but 171 for ops. Nav (16) never aligns with brand or content (86). Fix: make .appbar-inner and nav ul width:100%/max-width 1180px with margin-inline:auto and identical padding to main, brand left, controls pushed right (margin-left:auto), so brand, nav text and h1 share one left edge. Error state layout shift: the RetryBanner renders inside the header, growing it 64->138px (+74px) and pushing nav/main down 74px (main top 109->183); brand jumps 208->66 and the customer select shrinks 215->140 ('Unavailable'). Fix: render the banner below nav/inside main flow or reserve space/overlay, and keep header container geometry identical across states. Functionality: at / still no nav item is aria-current, though the eyebrow and chip give a cue; add a Home link or 'Home' active state. Role change not announced via live region (not verified; native selects only). Landing quick-cards duplicate the nav and leave ~450px of empty page; customer landing has one lonely card. Craft capped at 5 because of the visible alignment bug and 74px shift."
+  },
+  {
+    "story_id": "E1-S4",
+    "group": "D",
+    "iteration": 3,
+    "timestamp": "2026-10-04T17:34:04.273862+00:00",
+    "scores": {
+      "design_quality": 8,
+      "originality": 7,
+      "craft": 8,
+      "functionality": 8
+    },
+    "weights": {
+      "design_quality": 1.5,
+      "originality": 1.5,
+      "craft": 1.5,
+      "functionality": 1.0
+    },
+    "weighted_score": 7.73,
+    "threshold": 8,
+    "per_criterion_minimum": 5,
+    "verdict": "FAIL",
+    "failing_criteria": [
+      "weighted_average",
+      "originality"
+    ],
+    "previous_weighted_score": 6.64,
+    "regression": false,
+    "plateau": false,
+    "critique": "Iteration 2 defects verified fixed numerically. At 1280 for customer/ops/admin and in the error state, header=[0,0,1280,64], nav top 64, main top 109, brand mark/nav text/h1/banner all share left edge x=66 inside a 1180px container (main box x=50..1230, 16px padding); controls right edge 1214 in all roles; Role select fixed 160x40, Customer select 220x40 in happy and error ('Unavailable') states. No horizontal scroll at 1280/768/375 (scrollWidth==clientWidth). Error state: header/nav/brand/selects geometry identical to happy path (0px shift); banner (role=alert, Retry button) renders in a slot below nav at x=66 w=1148 and pushes main down 78px (109->187) at 1280, 135px at 375. Active nav: aria-current=page, bg #1B4577, 3px #FFD166 bottom border, bold, 44px tall; hover bg #1B4577; focus ring 3px #FFD166 on navy, #0B57B7 on light, skip link first in tab order; nav aria-label Primary; Role select labelled; aria-live present; prefers-reduced-motion rules present. Remaining deductions. Originality 7: still stock navy chrome plus white cards; landing quick-cards duplicate the nav (customer has one lonely card) and the lower ~300px of the page is empty; role chip and PB tile are the only distinctive elements. To reach 8+: give each role a distinct accent/avatar in the chip and landing, replace duplicate nav cards with live content (e.g. counts of stuck/unmatched items or recent payments), or a stronger brand moment in the header. Craft 8: at 768 the customer header wraps to 109px (chip right, selects on row 2) while ops/admin are 64px, so page content shifts 45px on role switch; at 768/375 brand text x=22.6/18.6 vs h1 x=16/12 is fine since tile is at 16/12. Banner insertion shifts content 78px (reserve a min-height slot or overlay to remove). On /payments the h1 sits at x=91 vs 66 shell edge (page-level padding inside a card, outside this story). Functionality 8: no nav item is current at / (by contract, no Home link); cue is the eyebrow, chip and '(you)' marker in How roles work, which is adequate but not a 9. Plateau check on last three weighted scores (7.45, 6.64, 7.73): delta 1.09 > 0.3, no pivot required; incremental work on Originality is the path to 8."
+  },
+  {
+    "story_id": "E1-S4",
+    "group": "D",
+    "iteration": 4,
+    "timestamp": "2026-10-04T17:44:11.222420+00:00",
+    "scores": {
+      "design_quality": 7,
+      "originality": 8,
+      "craft": 7,
+      "functionality": 8
+    },
+    "weights": {
+      "design_quality": 1.5,
+      "originality": 1.5,
+      "craft": 1.5,
+      "functionality": 1.0
+    },
+    "weighted_score": 7.45,
+    "threshold": 8,
+    "per_criterion_minimum": 5,
+    "verdict": "FAIL",
+    "failing_criteria": [
+      "weighted_average",
+      "design_quality",
+      "craft"
+    ],
+    "previous_weighted_score": 7.73,
+    "regression": true,
+    "plateau": false,
+    "critique": "Verified numerically (Playwright, 3 roles x 1280/768/375, plus GET /customers aborted). Claims hold: header height identical per role (64 / 109 / 205px at 1280/768/375); nav top and main top identical across roles and with/without error (main top 189 / 246 / 366); error banner (role=alert, Retry) lands inside the reserved slot (1280: y125-187) with 0px content shift; Role select 160x40, Customer select 220x40 ('Unavailable' in error); no horizontal scroll at any width; focus ring 3px #FFD166 on navy, #0B57B7 on light, skip link first; active nav aria-current=page, bg #1B4577, 3px #FFD166 bottom border, bold, 44px; Home is a non-link span aria-current=page at '/' and the how-roles LI also has aria-current=true (two current markers on one page, minor). Per-role accents (blue customer, green ops), avatar initial, tagline (hidden <=768), icon+purpose+Open-pill cards are real, visible originality gains. Deductions. Design Quality 7: the reserved alert slot is a permanent dead band: nav ends y=109 but the Home chip starts y=221 at 1280 (80px slot + 32px section padding = 112px of empty page), 92px slot at 768, 116px at 375. At 375 the chrome plus blank is 366px of a 667px viewport (55%) before any content, and ops/admin headers carry ~50px of empty navy under Role because the invisible picker row is still reserved (205px header for a one-control role). At 1280 for ops/admin the chip + Role select float mid-header (x=505-838) with a ~375px hole to the right edge where the hidden picker sits; the 'controls right-aligned' contract wording is only true of the invisible box. Fix: overlay the banner (position absolute/sticky toast under nav) or collapse the slot to 0 and accept a one-time shift, or put the banner inside the header's reserved picker slot; right-align the control cluster; hide the picker slot with display:none on ops/admin at <=768 and reserve only min-height on desktop. Originality 8: distinct per-role identity now, but still navy-bar + white-card vocabulary; role colour is limited to eyebrow rule, card stripe and avatar. A 9 needs live content (stuck/unmatched counts) on the cards. Craft 7: 0px shift achieved but by trading layout shift for 80-116px of dead space, plus the floating control cluster and empty navy rows above; on the positive side spacing grid, x=66 left edge alignment and type scale are consistent. 'How roles work' at 768 leaves Admin orphaned in a 2-col grid. Functionality 8: Home cue at '/' fixed, role switching announced via role=status, error and retry clear; blank band pushes primary content down on mobile (cards start y~560 at 375) and Home is not a nav link so keyboard users get no Home target."
+  },
+  {
+    "story_id": "E1-S4",
+    "group": "D",
+    "iteration": 5,
+    "timestamp": "2026-10-04T17:49:09Z",
+    "scores": {
+      "design_quality": 8,
+      "originality": 8,
+      "craft": 7,
+      "functionality": 8
+    },
+    "weights": {
+      "design_quality": 1.5,
+      "originality": 1.5,
+      "craft": 1.5,
+      "functionality": 1.0
+    },
+    "weighted_score": 7.73,
+    "threshold": 8,
+    "per_criterion_minimum": 5,
+    "verdict": "FAIL",
+    "failing_criteria": [
+      "weighted_average",
+      "craft"
+    ],
+    "previous_weighted_score": 7.45,
+    "regression": false,
+    "plateau": true,
+    "critique": "Verified numerically (Playwright, 3 roles x 1280/768/375, GET /customers aborted, plus focus and active nav). CLAIMS HOLD: header 64px at 1280/768 for all roles (375: 205 customer, 153 ops/admin, no empty navy row); nav 45px; main top identical with and without error (109/109/109 at 1280/768; 250 at 375 customer); alert is position:absolute inside a 0px-tall slot at main top+8; control cluster right edge = content right edge (1214 at 1280, 752 at 768) for all roles, controls 40px tall, Role 160x40; ops/admin picker placeholder gone (only Role select in header); How-roles is 3 columns at 1280 and 768; exactly one aria-current (SPAN Home) on '/' and Payments link carries aria-current=page, bg #1B4577, 3px #FFD166 bottom border, 700 weight at /payments; focus ring 3px #FFD166 on navy selects/links, #0B57B7 on skip link; no horizontal scroll at any width; nav links 44px. Dead space is gone: Home chip now starts y=141 (was 221). REMAINING DEFECTS. (1) The overlay covers content in a harmful way on mobile: at 375 the banner box (y258-356, 98px) sits over the eyebrow 'Customer workspace' (y320-338) and the top half of the H1 'Welcome to PayBridge' (y342-370); in the screenshot the H1 is clipped to its lower half. The banner has no dismiss and is persistent until Retry succeeds, so the page title stays defaced; z-index is auto (relies on DOM order) and the box has a heavy drop shadow. At 1280/768 it covers the Home chip (y141-162) and slices the top of the 3px role accent rule (y~180) - the rule peeks out below the banner edge at x66-106, which looks like a rendering glitch. Fix: reserve a modest slot only in the error state is not allowed (shift), so instead pin the banner to the nav bottom as a slim full-width strip with max 1 line (<=44px) on desktop, and on <=480px render it inside the header under the Customer select (the header already reflows) or as a fixed bottom sheet; add explicit z-index and Escape/dismiss. (2) The mockup top-of-content breadcrumb chip is hidden by the overlay in error state, so the active-page cue disappears exactly when the user is in a degraded state. (3) How-roles columns: current-role item gets border+15px padding so its text (x=81 customer, 469 ops) is offset from the sibling columns' text at their column edge (x=66/454/842); text left edges jitter between roles. Add transparent border-left + padding to all three. (4) Admin at 768 leaves 'Simulation' card alone in a 2-col grid (orphan, 3 items in 2 cols) - use 3 columns >=720 or span. Design Quality 8: coherent navy chrome, per-role accent, no dead bands; the overlay defacing the heading at 375 and the clipped accent rule hold it from 9. Originality 8: distinct role identity (avatar chip, accent colours, icon cards), still navy-bar + white-card vocabulary; 9 needs live data (stuck/unmatched counts) on cards. Craft 7: spacing grid and alignment of header cluster are good, but overlay collision with the H1 and accent rule, text-edge jitter in How-roles, and orphaned admin card at 768 are visible polish errors. Functionality 8: switching, announcements, Retry, single aria-current, focus all work; the persistent banner masking the page title on mobile is a usability dent, not a blocker. PLATEAU: last three weighted scores 7.73, 7.45, 7.73 (delta 0.28 < 0.3) with pivot_after_plateau=true, so the next iteration must change the error-banner pattern fundamentally (in-header/inline strip or bottom sheet rather than a content overlay) rather than tweak the current overlay's offsets; keep the header, nav and role identity as they are."
+  },
+  {
+    "story_id": "E1-S4",
+    "group": "D",
+    "iteration": 6,
+    "timestamp": "2026-10-04T17:57:22Z",
+    "scores": {
+      "design_quality": 6,
+      "originality": 7,
+      "craft": 5,
+      "functionality": 6
+    },
+    "weights": {
+      "design_quality": 1.5,
+      "originality": 1.5,
+      "craft": 1.5,
+      "functionality": 1.0
+    },
+    "weighted_score": 6.0,
+    "threshold": 8,
+    "per_criterion_minimum": 5,
+    "verdict": "FAIL",
+    "failing_criteria": [
+      "weighted_average",
+      "design_quality",
+      "originality",
+      "craft",
+      "functionality"
+    ],
+    "previous_weighted_score": 7.73,
+    "regression": true,
+    "plateau": false,
+    "critique": "Iteration 6 (post plateau-pivot). CLAIMS HOLD: overlay removed (alert is static, inside the Customer field, z auto, covers nothing); header 64px/nav 45px/main top 109 identical loaded vs error at 1280/768 (375 customer 205/45/250); h1 y identical; how-roles items all border-left 3px + padding 12px, text edges identical across roles (81/469/857 at 1280, 31/282/532 at 768); focus ring 3px #FFD166 on navy, #0B57B7 on skip link; aria-current=page on active nav with #1B4577 bg + 3px bottom border; controls 40px; nav links 44px; no horizontal scroll; error uses role=alert plus separate sr-only role=status live region. NEW BLOCKING REGRESSION: switching cards to 3 columns at >=768 crushes content at 768. Quick-link cards are 235px wide with icon + text + Open button in one row, so the title and body text get ~20px and wrap one to three characters per line (Dashboard -> 'D/as/hb/oa/rd'; cards 600-700px tall for ops and admin). Ops (2 cards) is equally broken; the grid stays 3-col with an empty third column. At 1280 cards are fine (372px) but heights are uneven (Dashboard 128, Settlement 106, Simulation 128: align-items start, ragged bottoms). Fix: auto-fit minmax(300px,1fr) or 3-col only >=1024, and stack the Open button under the text when card < 320px. ERROR STATE: the generator disclosed the clipped select at 768 (32px wide) but the same defect is present at 375 (47px, 'Unavailable' invisible, grey stub) and Role select shifts 103px left at 1280 when the error appears (724 -> 621) because the cluster is right-aligned and grows; the hint text is 12px and wraps at 768. Not acceptable as-is: a 32px disabled grey box with no text is a meaningless control and the only error cue left is the 12px hint. Compact treatment is good in concept and at 1280 (140px 'Unavailable', Retry 75x40, hint) and is a clear improvement over the overlay, but select needs min-width ~110px (flex-shrink 0) and the hint should wrap under or the Role select should shrink first; at 375 it fits in the row if select keeps 110px (110+8+75+ hint wraps). Design Quality 6: 1280 and 375 are coherent navy chrome with per-role accent, but the 768 home for ops/admin is visually broken. Originality 7: role chip, accent rule, icon cards distinctive; unchanged. Craft 5: shredded text columns, uneven card heights, error select stub, layout shift of Role select. Functionality 6: cards unreadable at tablet width, error picker unreadable at 768/375, though Retry is clear and accessible."
+  },
+  {
+    "story_id": "E1-S4",
+    "group": "D",
+    "iteration": 7,
+    "mode": "single-pass design-critic (no iteration loop)",
+    "timestamp": "2026-10-05T00:00:00Z",
+    "scores": {
+      "design_quality": 6,
+      "originality": 4,
+      "craft": 6,
+      "functionality": 5
+    },
+    "weights": {
+      "design_quality": 1.5,
+      "originality": 1.5,
+      "craft": 1.5,
+      "functionality": 1.0
+    },
+    "weighted_score": 5.27,
+    "threshold": 6,
+    "per_criterion_minimum": 5,
+    "verdict": "FAIL",
+    "failing_criteria": [
+      "weighted_average",
+      "originality"
+    ],
+    "note": "Threshold 6 per requester (calibration-profile.json says 8). Based on existing screenshots 01-initial, 03-payments, 04-nav-ops plus source (app.css, AppShell, NavBar, RoleSwitcher) vs mockup E1-S4.html; no new screenshots or live interaction, no 375px or error-state screenshots exist. Current source is much simpler than what iteration 6 critiqued (no brand mark, chip, landing cards, error banner), so iteration 6 notes do not apply.",
+    "critique": "Design Quality 6: tokens are applied correctly (navy #0B2545 chrome, #F4F6FA bg, 40px selects, 44px nav links, active item #1B4577 fill + 3px #FFD166 bottom border on /payments, skip link, focus ring). Coherent but sparse: main is a ~690px empty field at / and /payments with no heading or content, so the shell reads unfinished. Deviations from mockup: no max-width 1180px main container, brand is plain 16px bold text (mockup: 18px with 28px brand-mark tile), label font-size not set to 14px, nav ul is unaligned with brand (link text x=32 vs brand x=16 because link padding is added to nav padding). Originality 4: stock navy bar with white native selects; no brand mark, no role chip or per-role accent, no custom select styling; mockup brand-mark tile was dropped. Craft 6: consistent 8/12/16 spacing from tokens and good contrast, but left edges misalign (brand 16, nav text 32, active tab box starts at 16), header and nav are full-width while mockup content is capped at 1180px, no font-size/line-height/radius tokens used in app.css (body font-size unset), select font not inherited (uses browser default, visible in screenshots), .skip lacks z-index/transition styling. Functionality 5: role and customer controls are labelled and the nav is role-filtered with aria-current, which works. Gaps: at / (01-initial) no nav item is current and nothing shows the active session; RoleSwitcher swallows fetchCustomers failure (catch -> setCustomers([])) so the Customer select is silently empty with no error, retry or loading state (mockup defines error/loading/empty states and a Retry banner); no live-region announcement on role change; aria-current uses window.location.pathname read at render so it will not update on client navigation; no 375px verification. Required to pass higher: add main max-width container and shared left edge for brand/nav/content; restore brand-mark tile and 18px brand; add loading/error/empty states for the customer picker with Retry; add a role/customer indicator and a home/landing state; inherit font on selects. Plateau check: not applicable (single pass)."
+  }
+]

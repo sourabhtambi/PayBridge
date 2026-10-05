@@ -1,0 +1,459 @@
+{
+  "group": "D",
+  "stories": [
+    "E1-S4",
+    "E2-S2",
+    "E2-S4"
+  ],
+  "features": [
+    "F016",
+    "F017",
+    "F018",
+    "F019",
+    "F024",
+    "F025",
+    "F026",
+    "F027",
+    "F028",
+    "F034",
+    "F035",
+    "F036",
+    "F037"
+  ],
+  "contract": {
+    "api_checks": [
+      {
+        "id": "D-API-01",
+        "method": "GET",
+        "path": "/health",
+        "headers": {},
+        "expected_status": 200,
+        "expected_body": {
+          "status": "ok",
+          "database": "ok"
+        },
+        "description": "F036 regression (E2-S4 AC3): with the outbox worker running as an asyncio task inside the lifespan, the live app still answers /health with status ok and database ok. No new endpoint exists in this group (POST /payments is E2-S3), so E2-S2 and E2-S4 have no api_checks."
+      },
+      {
+        "id": "D-API-02",
+        "method": "GET",
+        "path": "/customers",
+        "headers": {
+          "Origin": "http://localhost:3000"
+        },
+        "expected_status": 200,
+        "expected_body": {
+          "total": 5
+        },
+        "description": "F017 (E1-S4 AC2): the endpoint feeding the customer picker, called from the frontend origin with no auth headers (public per api-contracts.md). Items include cus_001, cus_002, cus_003 with role customer (id, name, role per item; evaluator asserts these since expected_body is a partial match). Response carries Access-Control-Allow-Origin http://localhost:3000."
+      },
+      {
+        "id": "D-API-03",
+        "method": "GET",
+        "path": "/customers",
+        "headers": {},
+        "expected_status": 200,
+        "expected_body": {
+          "total": 5
+        },
+        "description": "api-contracts.md: GET /customers is public and needs no headers. Items cover cus_001..003, ops_001, adm_001, each with id, name, role."
+      },
+      {
+        "id": "D-API-04",
+        "method": "GET",
+        "path": "/customers",
+        "headers": {
+          "X-Role": "customer",
+          "X-Customer-Id": "cus_002",
+          "Origin": "http://localhost:3000"
+        },
+        "expected_status": 200,
+        "expected_body": {
+          "total": 5
+        },
+        "description": "F018 (E1-S4 AC3): the header set the UI client attaches (X-Role, X-Customer-Id) must not cause GET /customers to fail. Separately, the preflight (curl -X OPTIONS, not in the schema method enum) with Origin http://localhost:3000 and Access-Control-Request-Headers X-Role,X-Customer-Id,Idempotency-Key,Content-Type must return Allow-Origin http://localhost:3000 and list those four headers (api-contracts.md CORS row)."
+      }
+    ],
+    "playwright_checks": [
+      {
+        "id": "D-PW-01",
+        "description": "F016 (E1-S4 AC1): header has a select labelled 'Role' with exactly Customer, Ops and Admin, operable by keyboard alone.",
+        "url": "http://localhost:3000/",
+        "steps": [
+          {
+            "action": "evaluate",
+            "value": "localStorage.clear()"
+          },
+          {
+            "action": "navigate",
+            "value": "http://localhost:3000/"
+          },
+          {
+            "action": "assert",
+            "selector": "getByRole('banner')",
+            "assertion": "banner landmark is visible and contains getByLabel('Role')"
+          },
+          {
+            "action": "assert",
+            "selector": "getByLabel('Role')",
+            "assertion": "getByRole('combobox', { name: 'Role' }) is visible; its options are exactly Customer, Ops, Admin"
+          },
+          {
+            "action": "focus",
+            "selector": "getByLabel('Role')"
+          },
+          {
+            "action": "press",
+            "value": "ArrowDown",
+            "assertion": "getByLabel('Role') value changes to the next option by keyboard alone, no mouse click"
+          },
+          {
+            "action": "press",
+            "value": "ArrowDown",
+            "assertion": "value is the third option (Admin)"
+          },
+          {
+            "action": "press",
+            "value": "ArrowUp",
+            "assertion": "value is back to Ops; focus remains on the select"
+          },
+          {
+            "action": "press",
+            "value": "Tab",
+            "assertion": "focus moves off the select to the next focusable control in the header or nav (no keyboard trap)"
+          }
+        ]
+      },
+      {
+        "id": "D-PW-02",
+        "description": "F017 (E1-S4 AC2): customer picker visible only for Customer role and populated from live GET /customers.",
+        "url": "http://localhost:3000/",
+        "steps": [
+          {
+            "action": "evaluate",
+            "value": "localStorage.clear()"
+          },
+          {
+            "action": "navigate",
+            "value": "http://localhost:3000/"
+          },
+          {
+            "action": "select",
+            "selector": "getByLabel('Role')",
+            "value": "Customer"
+          },
+          {
+            "action": "assert",
+            "selector": "getByLabel('Customer')",
+            "assertion": "getByLabel('Customer') is visible; its options include the cus_001, cus_002 and cus_003 display names exactly as returned by live GET /customers (not hardcoded)"
+          },
+          {
+            "action": "select",
+            "selector": "getByLabel('Role')",
+            "value": "Ops"
+          },
+          {
+            "action": "assert",
+            "selector": "getByLabel('Customer')",
+            "assertion": "getByLabel('Customer') toHaveCount(0) or not.toBeVisible()"
+          },
+          {
+            "action": "select",
+            "selector": "getByLabel('Role')",
+            "value": "Admin"
+          },
+          {
+            "action": "assert",
+            "selector": "getByLabel('Customer')",
+            "assertion": "getByLabel('Customer') still absent"
+          },
+          {
+            "action": "select",
+            "selector": "getByLabel('Role')",
+            "value": "Customer"
+          },
+          {
+            "action": "assert",
+            "selector": "getByLabel('Customer')",
+            "assertion": "getByLabel('Customer') is visible again with the same options"
+          }
+        ]
+      },
+      {
+        "id": "D-PW-03",
+        "description": "F018 (E1-S4 AC3): every API request carries X-Role and X-Customer-Id from the current selection; persistence via localStorage across reload.",
+        "url": "http://localhost:3000/",
+        "steps": [
+          {
+            "action": "navigate",
+            "value": "http://localhost:3000/"
+          },
+          {
+            "action": "evaluate",
+            "value": "localStorage.clear()"
+          },
+          {
+            "action": "reload"
+          },
+          {
+            "action": "select",
+            "selector": "getByLabel('Role')",
+            "value": "Customer"
+          },
+          {
+            "action": "select",
+            "selector": "getByLabel('Customer')",
+            "value": "cus_002 option label as listed by GET /customers"
+          },
+          {
+            "action": "click",
+            "selector": "getByRole('link', { name: 'Payments' })",
+            "assertion": "wrapped in page.waitForRequest(req => req.url().startsWith('http://localhost:8000') && req.url().includes('/payments')); the response status is not asserted (GET /payments may be 401/404/501 until later groups), only the outgoing headers"
+          },
+          {
+            "action": "assert",
+            "assertion": "captured request headers (names case-insensitive) include X-Role: customer and X-Customer-Id: cus_002"
+          },
+          {
+            "action": "select",
+            "selector": "getByLabel('Role')",
+            "value": "Ops"
+          },
+          {
+            "action": "click",
+            "selector": "getByRole('link', { name: 'Reconciliation' })",
+            "assertion": "wrapped in page.waitForRequest for a request to http://localhost:8000; captured headers include X-Role: ops"
+          },
+          {
+            "action": "select",
+            "selector": "getByLabel('Role')",
+            "value": "Admin"
+          },
+          {
+            "action": "click",
+            "selector": "getByRole('link', { name: 'Dashboard' })",
+            "assertion": "wrapped in page.waitForRequest for a request to http://localhost:8000; captured headers include X-Role: admin"
+          },
+          {
+            "action": "select",
+            "selector": "getByLabel('Role')",
+            "value": "Customer"
+          },
+          {
+            "action": "select",
+            "selector": "getByLabel('Customer')",
+            "value": "cus_003 option label as listed by GET /customers"
+          },
+          {
+            "action": "evaluate",
+            "value": "JSON.stringify(Object.entries(localStorage))",
+            "assertion": "some localStorage entry holds the selection: role customer and customer id cus_003 (key name is not asserted; the mockup uses paybridge.session)"
+          },
+          {
+            "action": "reload"
+          },
+          {
+            "action": "assert",
+            "selector": "getByLabel('Role')",
+            "assertion": "toHaveValue Customer after reload"
+          },
+          {
+            "action": "assert",
+            "selector": "getByLabel('Customer')",
+            "assertion": "still shows the cus_003 option after reload"
+          },
+          {
+            "action": "click",
+            "selector": "getByRole('link', { name: 'Payments' })",
+            "assertion": "wrapped in page.waitForRequest; the captured request after reload carries X-Role: customer and X-Customer-Id: cus_003"
+          },
+          {
+            "action": "select",
+            "selector": "getByLabel('Role')",
+            "value": "Admin"
+          },
+          {
+            "action": "reload"
+          },
+          {
+            "action": "assert",
+            "selector": "getByLabel('Role')",
+            "assertion": "toHaveValue Admin after reload; getByLabel('Customer') toHaveCount(0)"
+          }
+        ]
+      },
+      {
+        "id": "D-PW-04",
+        "description": "F019 (E1-S4 AC4): role-aware navigation shows exactly the expected links and no others.",
+        "url": "http://localhost:3000/",
+        "steps": [
+          {
+            "action": "evaluate",
+            "value": "localStorage.clear()"
+          },
+          {
+            "action": "navigate",
+            "value": "http://localhost:3000/"
+          },
+          {
+            "action": "select",
+            "selector": "getByLabel('Role')",
+            "value": "Customer"
+          },
+          {
+            "action": "assert",
+            "selector": "getByRole('navigation', { name: 'Primary' }).getByRole('link')",
+            "assertion": "toHaveCount(1) and the only link is Payments"
+          },
+          {
+            "action": "select",
+            "selector": "getByLabel('Role')",
+            "value": "Ops"
+          },
+          {
+            "action": "assert",
+            "selector": "getByRole('navigation', { name: 'Primary' }).getByRole('link')",
+            "assertion": "toHaveCount(2): Reconciliation and Stuck payments only"
+          },
+          {
+            "action": "select",
+            "selector": "getByLabel('Role')",
+            "value": "Admin"
+          },
+          {
+            "action": "assert",
+            "selector": "getByRole('navigation', { name: 'Primary' }).getByRole('link')",
+            "assertion": "toHaveCount(3): Dashboard, Settlement and Simulation only"
+          },
+          {
+            "action": "click",
+            "selector": "getByRole('link', { name: 'Dashboard' })",
+            "assertion": "link is visible and clickable; the shell header and nav remain rendered after navigation (aria-current is a design/accessibility check, not an AC)"
+          }
+        ]
+      },
+      {
+        "id": "D-PW-05",
+        "description": "F016/F019 shell sanity: the shell renders and the API is reachable from the browser origin with no CORS or console errors (supports AC2/AC3). Skip link and landmarks are scored under design_checks.accessibility.",
+        "url": "http://localhost:3000/",
+        "steps": [
+          {
+            "action": "evaluate",
+            "value": "localStorage.clear()"
+          },
+          {
+            "action": "navigate",
+            "value": "http://localhost:3000/"
+          },
+          {
+            "action": "select",
+            "selector": "getByLabel('Role')",
+            "value": "Customer"
+          },
+          {
+            "action": "assert",
+            "selector": "getByLabel('Customer')",
+            "assertion": "toBeVisible, which proves GET /customers succeeded cross-origin; no console error messages and no failed requests were recorded (page.on('console') and page.on('requestfailed') listeners)"
+          },
+          {
+            "action": "assert",
+            "selector": "getByRole('main')",
+            "assertion": "toHaveCount(1)"
+          }
+        ]
+      }
+    ],
+    "design_checks": {
+      "visual_hierarchy": {
+        "required": true,
+        "min_score": 8,
+        "description": "Evaluated on the shell at /, for each role, against specs/design/mockups/E1-S4.html and design-tokens.md: navy header (--color-nav-bg #0B2545) with brand left and Role (and Customer) controls right, navy nav bar beneath, content on --color-bg #F4F6FA, content max width 1180px. Weighted score threshold from calibration-profile.json: 8 (design_quality 1.5, originality 1.5, craft 1.5, functionality 1.0), per-criterion minimum 5. Design-critic runs up to 10 iterations with the plateau rule in calibration-profile.json."
+      },
+      "accessibility": {
+        "required": true,
+        "min_score": 8,
+        "description": "WCAG 2.1 AA per design-tokens.md: the Role select has a programmatic label 'Role'; Customer picker has label; nav is a navigation landmark labelled 'Primary'; skip link present; visible :focus-visible ring 3px using --color-focus-ring-on-dark #FFD166 inside the navy header and nav; text contrast at or above 4.5:1 using the tokens (nav-text on nav-bg 15.39:1); controls at least 40px tall; the active nav item is exposed with aria-current=page; role switching announces nothing misleading (live region optional). Colour is not the only indicator of the active item."
+      },
+      "responsiveness": {
+        "required": true,
+        "min_score": 8,
+        "description": "Screenshots at 1280px, 768px and 375px. No horizontal scroll at 375px; header controls and nav wrap (flex-wrap) without clipping or overlap; nav link targets stay at least 44px tall on mobile per design-tokens.md."
+      },
+      "interaction_feedback": {
+        "required": true,
+        "min_score": 8,
+        "description": "Switching role updates nav links and picker visibility immediately; picker shows a loading state while GET /customers is in flight and an error banner (role=alert) with a Retry button if it fails (mockup ?state=error); hover and focus states on nav links use --color-nav-active-bg; animations respect prefers-reduced-motion."
+      }
+    },
+    "architecture_checks": {
+      "unit_tests": {
+        "required": true,
+        "description": "Backend and frontend suites exit 0 and the evaluator probes the ACs itself, not relying on the generator's tests alone. (a) `cd backend && uv run pytest -x -q` exits 0 including tests/unit/test_idempotency_decision.py, tests/service/test_idempotency.py, tests/integration/test_concurrency.py, tests/service/test_worker_success.py, tests/repository/test_rail_ledger.py and all earlier groups' tests; coverage at or above 80. (b) `cd frontend && npm test` exits 0 including RoleSwitcher.test.tsx, NavBar.test.tsx and client.test.ts, with coverage at or above 80 if configured. (c) Probes below run on fresh file databases under a temp directory with FakeClock/injected ids, calling paybridge.service.payment_service and the delivery/worker services directly via the project's container or factory, since no POST /payments exists yet (E2-S3). failure_layer is service. IDEMPOTENCY (E2-S2). F024 (AC1): create(customer cus_001, key K, 150000 paise, 'Ravi Kumar') then the identical call again returns the same payment id with replay true (first call replay false); raw SQL shows exactly 1 payments row, 1 outbox_messages row and 1 PAYMENT_CREATED event, so replay adds no outbox or event rows. F025 (AC2): same key K with amount 150001, and separately with beneficiary 'Ravi Kumaar', each raises paybridge.types.errors.IdempotencyConflict (typed, not sqlite3.IntegrityError, not ValueError), and afterwards count(payments)=1, count(outbox_messages)=1, count(payment_events)=1; the original row is unchanged. request_hash is computed on the stripped beneficiary and integer amount, so 'Ravi Kumar ' with trailing space replays (not a conflict). F026 (AC3): 20 concurrent create calls with one key and payload through real threads against a file DB (threads, not a single-thread loop; a thread barrier releases them together) produce exactly 1 result with replay false and 19 with replay true, all with the same payment id, count(payments)=1, count(outbox_messages)=1, no exception escapes (no sqlite3.OperationalError 'database is locked', no IntegrityError, no 500-equivalent). The evaluator repeats the run at least 5 times to catch flakes. F027 (AC4): same key K for cus_001 and cus_002 creates two payments with different ids, both replay false, count(payments)=2; replaying for each returns its own original payment, never the other customer's. F028 (AC5): create at t0, advance FakeClock to exactly 86399 s (replay, same id), to exactly 86400 s (treated as expired per data-models.md: created_at + 86400 s <= now) and to 86401 s (24h01m): same key and payload then creates a NEW payment id with replay false and a new outbox row and event; the original row is byte-identical to before except idempotency_released_at now equals the clock time and updated_at unchanged; no event is added to the original; a different payload on an expired key succeeds as a new payment (no conflict). After the release, replay of K returns the new payment, and the TTL window is fixed from the original created_at (a replay at 23h does not extend it; data-models.md and api-contracts.md). Idempotency decision in idempotency.py is pure: decide(active, now, request_hash) returns exactly one of insert, replay, conflict or release with no I/O, and unit tests cover each branch and the boundary; the TTL comes from config.constants IDEMPOTENCY_TTL_SECONDS = 86400 (grep payment_service.py and idempotency.py for 86400 and 24 * 60 returns nothing outside constants). Failure atomicity from group C still holds: an injected outbox insert failure after a release leaves the original's idempotency_released_at NULL (rollback). WORKER (E2-S4). F034 (AC1): create a CREATED payment, run exactly one worker cycle (fake sleeper, injected clock); payments.state is COMPLETED with rail_reference non-null and completed_at non-null; exactly one payment_attempts row with attempt_no 1 and outcome 'success'; payment_events for the payment in rowid order are exactly PAYMENT_CREATED, PAYMENT_SUBMITTED, PAYMENT_COMPLETED; the intermediate SUBMITTED state is observable (state transitions via state_machine.assert_transition; an adapter stub that reads the payment during submit sees SUBMITTED, with submitted_at set). Done for each of the four rails (amounts 10000 UPI, 10000001 IMPS, 20000001 NEFT, 50000001 RTGS), the rail ledger gets exactly one PAYMENT entry per payment with matching rail, payment_id, amount_paise and the same rail_ref as the payment's rail_reference. F035 (AC2): UPI, NEFT, RTGS and IMPS adapters each satisfy the paybridge.types.ports.RailAdapter Protocol (isinstance via runtime_checkable or method-signature check), all built on the shared base in service/rails/base.py, and registry.py maps every Rail enum member to its adapter; calling submit twice with the same payment id on each adapter returns an identical rail reference, the rail reference matches the deterministic form f'{RAIL}{sha256(payment_id)[:12].upper()}' per system-design.md (e.g. UPI + 12 uppercase hex chars, IMPS9A3C1F0B27D4 shape), and rail_ledger.jsonl holds exactly one line for that (type, rail, payment_id) afterwards; a new Ledger instance on the same file (simulated restart) still returns the same entry and does not duplicate it; the JSONL lines parse as JSON and carry the rail, payment id, rail reference and integer amount_paise (exact key names beyond these are not mandated; accepted_at is ISO Z because completed_at equals it per data-models.md X1/X3). Different payment ids give different references. In this group the adapters run in success mode only: no failure/transient path is required, and the evaluator does not penalise their absence (retry belongs to later groups). F036 (AC3): using TestClient as a context manager on create_app() with a throwaway PAYBRIDGE_DB_PATH, PAYBRIDGE_RAIL_LEDGER_PATH and a small PAYBRIDGE_WORKER_POLL_INTERVAL, the worker asyncio.Task exists and is not done inside the context (reachable from app.state or the worker object), and after exit it is done and not cancelled-with-error; running with asyncio debug enabled shows no 'Task was destroyed but it is pending', no 'coroutine ... was never awaited' warning and no unclosed resource warnings; the worker also processes a payment seeded before startup within a few poll intervals while the app is live, proving it is actually polling. Stop is clean when the worker is mid-sleep (cancellation or stop event, sleeper injectable) and starting then stopping twice in one process works. Worker loop contains no time.sleep (grep returns nothing in outbox_worker.py; asyncio-compatible sleeper only) and the blocking sqlite and file calls do not run directly on the event loop thread for long (they go through a thread executor or short synchronous calls, as documented in the code). F037 (AC4): run two or more poll cycles, the adapter spy is called exactly once for the payment, outbox_messages.status is SENT with attempts unchanged by success, claimed_at behaviour per data-models.md, count(payment_attempts)=1 and count(PAYMENT_SUBMITTED)=1 after the second cycle; a SENT row is never returned by outbox_repo.claim_due; outbox rows with next_attempt_at in the future (clock not advanced) are not processed; ten payments are each processed exactly once across several cycles in claim order; recovery/startup reset of IN_PROGRESS is out of scope here. Txn discipline per system-design.md: txn1 (claim and SUBMITTED + event) and txn2 (attempt, COMPLETED, event, outbox SENT) are separate Database.write() transactions, and the rail call happens outside any open DB transaction (verified by reading delivery_service.py); conditional updates use WHERE state='SUBMITTED' so a double terminal transition is impossible (a second delivery of the same payment id after COMPLETED changes nothing and adds no attempt or event). Beneficiary never appears in event payloads, rail ledger lines or log output captured during the worker run. FRONTEND (E1-S4). `cd frontend && npm test` unit probes: navigation.ts exports a pure function returning labels and routes per role equal to Customer [Payments /payments], Ops [Reconciliation /reconciliation, Stuck payments /stuck-payments], Admin [Dashboard /dashboard, Settlement /settlement, Simulation /simulation] with no other entries; client.ts attaches X-Role always and X-Customer-Id when role is customer (no assertion on X-Customer-Id for ops or admin, api-contracts.md only requires it for customer), reads the current session through an injected getter on each call (switching selection changes the next request headers without rebuilding the client), and does not import from ui/; SessionContext persists the selection to localStorage and restores it on mount (key name not mandated; corrupt-JSON handling is a nice-to-have, not scored); RoleSwitcher renders the Role select with the three options and hides the picker for non-customer roles; NavBar renders per role."
+      },
+      "layering": {
+        "required": true,
+        "description": "One-way imports checked by grep of import statements. BACKEND: service/** never imports paybridge.api, fastapi or starlette; service/rails/*, delivery_service.py, outbox_worker.py, idempotency.py and payment_service.py import only from types, config, repository (via ports or repositories), lib and stdlib; asyncio is allowed in outbox_worker.py. repository/rail_ledger.py implements the RailLedger Protocol from types/ports.py and imports nothing from service or api; repository/** contains only SQL, file IO and DuplicateKeyError translation, with no routing, TTL or retry decisions (find_active and release in payments_repo.py take 'now' as a parameter and never read the clock). The RailAdapter Protocol lives in types/ports.py and the adapters in service/rails/ implement it; delivery_service.py depends on the Protocol or registry, not on concrete adapter classes. api/app.py (modified for lifespan) is the only place that starts and stops the worker, and obtains it from api/container.py (composition root); routes never touch the worker or repositories directly. sqlite3.connect appears only in repository/db.py and migrate.py; SQL values are bound parameters; internal imports are absolute (paybridge....). Clock and Sleeper are injected, so there is no direct datetime.now(), time.time() or asyncio.sleep in service/** except via the injected Clock and Sleeper (grep service/ returns no datetime.now or time.time). FRONTEND per folder-structure.md: types -> config -> service -> api -> ui. service/navigation.ts imports only from types and config and never from api/ or ui/; api/client.ts and api/customers.ts never import from ui/ (the session getter is injected from ui at startup in main.tsx); config/ imports only types; types/ import nothing; ui/components never call fetch directly (go through api/). eslint import-layer rules are active and pass. No fetch or XMLHttpRequest outside frontend/src/api."
+      },
+      "typing": {
+        "required": true,
+        "description": "BACKEND: `cd backend && uv run mypy src/` exits 0 and `cd backend && uv run ruff check .` exits 0. No Any and no `# type: ignore` in files added or modified by E2-S2 and E2-S4. No *_paise annotated float anywhere in backend/src. Public service functions fully annotated, the worker's task and lifecycle methods have explicit return types, and the idempotency result type (payment plus replay flag) is a typed frozen dataclass or Pydantic model, not a tuple of untyped values; IdempotencyConflict is a typed error class in types/errors.py. FRONTEND: `cd frontend && npm run typecheck` (tsc --noEmit, strict) exits 0 and `cd frontend && npm run lint` exits 0 with @typescript-eslint/no-explicit-any as error; grep frontend/src for ': any', 'as any' and '@ts-ignore' returns nothing outside test mocks, and 'as unknown as' is not used in production code; Role is a string-literal union or enum from types/domain.ts. Size limits from CLAUDE.md: files under 300 lines and functions under 50 lines in all added or modified files (backend and frontend; React components count as functions); no console.log in frontend/src production paths."
+      },
+      "folder_structure": {
+        "required": true,
+        "description": "Every file listed for E1-S4, E2-S2 and E2-S4 in specs/design/component-map.md exists at the path in folder-structure.md. The frontend must be a working Vite React TypeScript project with scripts dev, build, test, lint, typecheck in package.json, port 3000 set in vite.config.ts (`npm run dev -- --port 3000` per project-manifest.json boots it), tsconfig strict, eslint.config.js, and index.html with the root element and skip link, plus styles/tokens.css matching specs/design/mockups/tokens.css (the UI stylesheet is not a required file for the component-map list but is needed for design_checks). Evaluator starts both servers in local verification mode as defined in project-manifest.json and init.sh: backend `cd backend && uv run uvicorn src.main:app --port 8000` with throwaway PAYBRIDGE_DB_PATH, PAYBRIDGE_RAIL_LEDGER_PATH and PAYBRIDGE_DATA_DIR under a temp directory, and frontend `cd frontend && npm run dev -- --port 3000`; waits on http://localhost:8000/health with the manifest policy (5 retries, 2 s backoff) and on http://localhost:3000; runs api_checks and playwright_checks; then stops both processes and removes the temp directory. init.sh must still reach 'Environment ready' (it runs npm ci, so frontend/package-lock.json must exist and match package.json). No *.db, *.db-wal, *.db-shm, rail_ledger.jsonl or .run/ files are left under backend/, frontend/ or the repo root, and node_modules and dist are git-ignored.",
+        "files_must_exist": [
+          "frontend/package.json",
+          "frontend/package-lock.json",
+          "frontend/vite.config.ts",
+          "frontend/tsconfig.json",
+          "frontend/eslint.config.js",
+          "frontend/index.html",
+          "frontend/src/main.tsx",
+          "frontend/src/ui/App.tsx",
+          "frontend/src/ui/state/SessionContext.tsx",
+          "frontend/src/ui/components/AppShell.tsx",
+          "frontend/src/ui/components/RoleSwitcher.tsx",
+          "frontend/src/ui/components/RoleSwitcher.test.tsx",
+          "frontend/src/ui/components/NavBar.tsx",
+          "frontend/src/ui/components/NavBar.test.tsx",
+          "frontend/src/service/navigation.ts",
+          "frontend/src/api/client.ts",
+          "frontend/src/api/client.test.ts",
+          "frontend/src/api/customers.ts",
+          "frontend/src/types/domain.ts",
+          "frontend/src/types/api.ts",
+          "frontend/src/config/env.ts",
+          "frontend/src/config/constants.ts",
+          "frontend/src/config/routes.ts",
+          "backend/src/paybridge/service/idempotency.py",
+          "backend/src/paybridge/service/payment_service.py",
+          "backend/src/paybridge/repository/payments_repo.py",
+          "backend/tests/unit/test_idempotency_decision.py",
+          "backend/tests/service/test_idempotency.py",
+          "backend/tests/integration/test_concurrency.py",
+          "backend/src/paybridge/service/rails/base.py",
+          "backend/src/paybridge/service/rails/upi.py",
+          "backend/src/paybridge/service/rails/imps.py",
+          "backend/src/paybridge/service/rails/neft.py",
+          "backend/src/paybridge/service/rails/rtgs.py",
+          "backend/src/paybridge/service/rails/registry.py",
+          "backend/src/paybridge/service/delivery_service.py",
+          "backend/src/paybridge/service/outbox_worker.py",
+          "backend/src/paybridge/repository/rail_ledger.py",
+          "backend/src/paybridge/api/app.py",
+          "backend/tests/service/test_worker_success.py",
+          "backend/tests/repository/test_rail_ledger.py",
+          "backend/tests/support/fake_sleeper.py"
+        ]
+      },
+      "env_vars": {
+        "required": true,
+        "description": "Backend reads configuration only through paybridge.config.settings.Settings (no os.environ or os.getenv in api/, service/ or repository/). PAYBRIDGE_RAIL_LEDGER_PATH (default <data>/rail_ledger.jsonl) is honoured by the rail ledger the worker uses, and PAYBRIDGE_WORKER_POLL_INTERVAL (default 0.5) by the worker loop; the evaluator sets both and observes the ledger file at the given path and the poll cadence (no hardcoded 0.5, 60 or path literal in outbox_worker.py or rail_ledger.py; OUTBOX_LEASE_SECONDS and IDEMPOTENCY_TTL_SECONDS come from config/constants.py). PAYBRIDGE_CORS_ORIGIN default is http://localhost:3000, so the browser at port 3000 can call the backend with X-Role, X-Customer-Id, Idempotency-Key and Content-Type headers (live OPTIONS preflight with Origin http://localhost:3000 returns 2xx with Access-Control-Allow-Origin http://localhost:3000 and Allow-Headers listing X-Role, X-Customer-Id, Idempotency-Key and Content-Type). Frontend reads its API base URL only through frontend/src/config/env.ts (default http://localhost:8000, overridable via a VITE_ variable such as VITE_API_BASE_URL); no other file in frontend/src references 'localhost:8000' or import.meta.env (grep). The localStorage key and nav definitions live in config/constants.ts, not scattered literals. No secret or absolute path is hardcoded."
+      },
+      "migrations": {
+        "required": true,
+        "description": "No schema change in this group. E2-S2 uses the existing payments.idempotency_released_at column and ux_payments_customer_key from data-models.md; E2-S4 uses the existing payment_attempts and outbox_messages tables and the JSONL rail ledger file (not a DB table). git diff must show no change to repository/schema.py DDL and no ALTER statements; the 9-table schema from group B is intact (sqlite_master table list unchanged). initialize_database run twice on a DB that already holds payments, attempts, outbox rows and events preserves all rows. The ledger file is created on first write at PAYBRIDGE_RAIL_LEDGER_PATH including its parent directory if missing, and an existing ledger file is reused (not truncated) on app restart. Starting the app on a fresh DB runs migrate, seed and then starts the worker with no manual step, and restarting on the same DB leaves customers count at 5."
+      }
+    }
+  }
+}
