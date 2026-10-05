@@ -1,7 +1,7 @@
 """Rail routing bands (BRD 5.3). Upper bounds are inclusive, in paise."""
 
+from paybridge.domain.money import validate_amount
 from paybridge.types.enums import Rail
-from paybridge.types.money import validate_amount
 
 UPI_MAX_PAISE = 10_000_000
 IMPS_MAX_PAISE = 20_000_000

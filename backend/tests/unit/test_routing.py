@@ -1,8 +1,8 @@
 import pytest
 
+from paybridge.domain.routing import route_rail, routing_reason
 from paybridge.types.enums import Rail
 from paybridge.types.errors import AmountBelowMinimum
-from paybridge.types.routing import route_rail, routing_reason
 
 
 @pytest.mark.parametrize(

@@ -1,12 +1,12 @@
 import pytest
 
-from paybridge.types.errors import AmountBelowMinimum, DomainError, ValidationError
-from paybridge.types.money import (
+from paybridge.domain.money import (
     MIN_AMOUNT_PAISE,
     format_paise_as_rupees,
     rupees_to_paise,
     validate_amount,
 )
+from paybridge.types.errors import AmountBelowMinimum, DomainError, ValidationError
 
 
 @pytest.mark.parametrize("amount", [0, -1, 1, 99])

@@ -3,6 +3,7 @@
 import json
 import sqlite3
 
+from paybridge.domain.state_machine import assert_payment_transition
 from paybridge.lib.ids import new_event_id, new_refund_id
 from paybridge.lib.timeutil import iso_z
 from paybridge.repository.db import Database
@@ -20,7 +21,6 @@ from paybridge.types.errors import (
 )
 from paybridge.types.models import PaymentEvent, Refund
 from paybridge.types.ports import Clock, RailAdapter
-from paybridge.types.state_machine import assert_payment_transition
 
 
 class RefundService:

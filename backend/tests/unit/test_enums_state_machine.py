@@ -1,8 +1,6 @@
 import pytest
 
-from paybridge.types.enums import PaymentState, ReconStatus, RefundState, Role
-from paybridge.types.errors import InvalidPaymentStateException
-from paybridge.types.state_machine import (
+from paybridge.domain.state_machine import (
     assert_payment_transition,
     assert_refund_transition,
     assert_transition,
@@ -10,6 +8,8 @@ from paybridge.types.state_machine import (
     is_valid_refund_transition,
     is_valid_transition,
 )
+from paybridge.types.enums import PaymentState, ReconStatus, RefundState, Role
+from paybridge.types.errors import InvalidPaymentStateException
 
 
 def test_enum_values_match_brd() -> None:
