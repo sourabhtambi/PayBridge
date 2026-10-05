@@ -1,10 +1,11 @@
 """Structural tests enforcing the layered architecture (NFR-08).
 
-Layer order (low to high): types -> config -> repository -> service -> api.
+Layer order (low to high): types -> domain -> config -> repository -> service -> api.
 Imports are read from the AST, so comments and strings never cause false hits.
 """
 
 import ast
+import sys
 from pathlib import Path
 
 import pytest
@@ -13,7 +14,7 @@ PACKAGE = "paybridge"
 SRC_ROOT = Path(__file__).resolve().parents[2] / "src" / PACKAGE
 
 # Layers above the key are forbidden imports for it.
-LAYERS = ("types", "config", "repository", "service", "api")
+LAYERS = ("types", "domain", "config", "repository", "service", "api")
 
 # Known api -> repository violations (routes holding business logic; see
 # claude-progress.txt "clean-code review"). Ratchet: new entries must not be
@@ -87,7 +88,31 @@ def test_service_does_not_import_api() -> None:
 
 
 def test_types_does_not_import_any_other_layer() -> None:
-    assert _violations("types", ("config", "repository", "service", "api")) == {}
+    assert _violations("types", ("domain", "config", "repository", "service", "api")) == {}
+
+
+def _disallowed_domain_imports(path: Path) -> list[str]:
+    """Imports that are neither stdlib nor paybridge.types / paybridge.domain."""
+    allowed = (f"{PACKAGE}.types", f"{PACKAGE}.domain")
+    bad: list[str] = []
+    for module in _imported_modules(path):
+        top = module.split(".")[0]
+        if top in sys.stdlib_module_names:
+            continue
+        if any(module == a or module.startswith(a + ".") for a in allowed):
+            continue
+        bad.append(module)
+    return sorted(bad)
+
+
+def test_domain_imports_only_types_and_stdlib() -> None:
+    """Domain rules are pure: stdlib, types/ and sibling domain modules only."""
+    found = {
+        path.relative_to(SRC_ROOT).as_posix(): bad
+        for path in _layer_files("domain")
+        if (bad := _disallowed_domain_imports(path))
+    }
+    assert found == {}
 
 
 @pytest.mark.parametrize(
@@ -108,3 +133,16 @@ def test_import_scanner_detects_violations(tmp_path: Path) -> None:
     assert _imports_layer(bad, "api") == ["paybridge.api.app", "paybridge.api.app.create_app"]
     assert _imports_layer(bad, "service") == ["paybridge.service.x"]
     assert _imports_layer(bad, "repository") == []
+
+
+def test_domain_scanner_detects_violations(tmp_path: Path) -> None:
+    bad = tmp_path / "bad.py"
+    bad.write_text(
+        "import json\nfrom paybridge.types.enums import Rail\n"
+        "from paybridge.config.settings import Settings\nimport sqlite3\nimport fastapi\n"
+    )
+    assert _disallowed_domain_imports(bad) == [
+        "fastapi",
+        "paybridge.config.settings",
+        "paybridge.config.settings.Settings",
+    ]
